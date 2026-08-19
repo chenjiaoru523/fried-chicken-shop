@@ -218,7 +218,7 @@ const USERS = {
 
 const PERMISSIONS = {
   admin: { hidden: [], canAdd: true, canEdit: true, canDelete: true },
-  employee: { hidden: ['salary'], canAdd: ['shift_handover','attendance','leave','inventory_check'], canEdit: ['shift_handover','attendance','leave','inventory_check'], canDelete: [] }
+  employee: { hidden: ['salary'], canAdd: ['supplier','material','purchase','return','shift_handover','attendance','leave','inventory_check'], canEdit: ['supplier','material','purchase','return','shift_handover','attendance','leave','inventory_check'], canDelete: ['supplier','material','purchase','return'] }
 };
 
 const TABLES = {
@@ -237,9 +237,9 @@ const TABLES = {
     {key:'category',label:'分类',type:'select',options:['肉类','面食类','油料类','调料类','饮品类','包装类','蔬菜类','其他']},
     {key:'unit',label:'单位',type:'select',options:['kg','斤','个','包','瓶','箱','L','份']},
     {key:'price',label:'单价(元)',type:'number'},
-    {key:'stock_quantity',label:'库存数量',type:'number'},
     {key:'alert_quantity',label:'库存预警值',type:'number'},
     {key:'supplier_id',label:'供应商',type:'ref',target:'supplier',displayKey:'name'},
+    {key:'stock_quantity',label:'当前库存',type:'number',readonly:true},
     {key:'remark',label:'备注',type:'textarea'}
   ]},
   employee: { label:'员工', icon:'\uD83D\uDC64', group:'基础数据', table:'employee', fields:[
@@ -272,8 +272,8 @@ const TABLES = {
   inventory_check: { label:'每日盘点', icon:'\uD83D\uDCCB', group:'库存管理', table:'inventory_check', fields:[
     {key:'date',label:'日期',type:'date',required:true},
     {key:'material_id',label:'物料',type:'ref',target:'material',displayKey:'name',required:true},
-    {key:'actual_quantity',label:'盘点数量',type:'number',required:true},
     {key:'book_quantity',label:'账面数量',type:'number'},
+    {key:'actual_quantity',label:'盘点数量',type:'number',required:true},
     {key:'difference',label:'差异',type:'number'},
     {key:'remark',label:'备注',type:'textarea'}
   ]},
@@ -284,8 +284,6 @@ const TABLES = {
     {key:'receiver',label:'接班人',type:'text',required:true},
     {key:'material_id',label:'物料名称',type:'ref',target:'material',displayKey:'name',required:true},
     {key:'remaining_quantity',label:'剩余数量',type:'number',required:true},
-    {key:'unit',label:'单位',type:'select',options:['kg','斤','个','包','瓶','箱','L','份']},
-    {key:'alert_quantity',label:'库存预警值',type:'number'},
     {key:'need_restock',label:'是否需补货',type:'boolean'},
     {key:'restock_suggestion',label:'补货建议',type:'text'},
     {key:'daily_revenue',label:'当日营业额(元)',type:'number'},
@@ -758,6 +756,18 @@ function openAddModal(tableKey) {
   document.getElementById('modalTitle').textContent = '新增' + def.label;
   renderForm(tableKey, null);
   document.getElementById('modalOverlay').classList.add('active');
+  if (tableKey === 'inventory_check') {
+    setTimeout(function() {
+      var matSel = document.getElementById('field_material_id');
+      if (matSel) matSel.addEventListener('change', updateInventoryBookQty);
+    }, 100);
+  }
+  if (tableKey === 'shift_handover') {
+    setTimeout(function() {
+      var matSel = document.getElementById('field_material_id');
+      if (matSel) matSel.addEventListener('change', updateShiftHandoverAlert);
+    }, 100);
+  }
 }
 
 function openEditModal(tableKey, rowId) {
@@ -784,7 +794,9 @@ function renderForm(tableKey, row) {
     html += '<div class="form-group' + full + '">';
     html += '<label>' + f.label + (f.required ? '<span class="required-mark">*</span>' : '') + '</label>';
     if (f.type === 'text' || f.type === 'number' || f.type === 'date') {
-      html += '<input type="' + f.type + '" id="field_' + f.key + '" value="' + escapeAttr(val) + '" placeholder="请输入' + f.label + '">';
+      var ro = f.readonly ? ' readOnly' : '';
+      var roStyle = f.readonly ? ' style="background:#f5f5f5;cursor:not-allowed"' : '';
+      html += '<input type="' + f.type + '" id="field_' + f.key + '" value="' + escapeAttr(val) + '"' + ro + roStyle + ' placeholder="请输入' + f.label + '">';
     } else if (f.type === 'textarea') {
       html += '<textarea id="field_' + f.key + '" placeholder="请输入' + f.label + '">' + escapeHtml(val) + '</textarea>';
     } else if (f.type === 'select') {
@@ -838,6 +850,15 @@ function updateRefSelects(refFields, targetKey) {
   }
 }
 
+async function getOldRecordValue(table, id, field) {
+  if (!id || !table || !field) return 0;
+  try {
+    var def = TABLES[table];
+    var old = await sb.from(def.table).select(field).eq('id', id).single();
+    return (old && !old.error && old.data && old.data[field]) ? old.data[field] : 0;
+  } catch(e) { return 0; }
+}
+
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('active');
   var btn = document.getElementById('modalSaveBtn');
@@ -855,6 +876,7 @@ async function saveModalData() {
   var hasError = false;
   for (var i=0; i<def.fields.length; i++) {
     var f = def.fields[i];
+    if (f.readonly) continue;
     var el = document.getElementById('field_' + f.key);
     if (!el) continue;
     var val = el.value.trim();
@@ -865,6 +887,16 @@ async function saveModalData() {
     else data[f.key] = val;
   }
   if (hasError) return;
+  // 盘点自动带出账面数量
+  if (editingTable === 'inventory_check' && data.material_id) {
+    var matList = tableData['material'] || [];
+    for (var i=0; i<matList.length; i++) {
+      if (String(matList[i].id) === String(data.material_id)) {
+        data.book_quantity = matList[i].stock_quantity || 0;
+        break;
+      }
+    }
+  }
   // 自动计算
   if (editingTable === 'purchase' && data.quantity != null && data.unit_price != null) data.total_price = data.quantity * data.unit_price;
   if (editingTable === 'inventory_check' && data.actual_quantity != null && data.book_quantity != null) data.difference = data.actual_quantity - data.book_quantity;
@@ -872,9 +904,16 @@ async function saveModalData() {
     data.commission_amount = data.revenue * data.commission_rate / 100;
     data.net_income = data.revenue - (data.commission_amount || 0) + (data.subsidy || 0);
   }
-  if (editingTable === 'shift_handover' && data.remaining_quantity != null && data.alert_quantity != null) {
-    data.need_restock = data.remaining_quantity <= data.alert_quantity;
-    if (data.need_restock) data.restock_suggestion = '需补货' + (data.alert_quantity - data.remaining_quantity + 5) + (data.unit || '');
+  if (editingTable === 'shift_handover' && data.remaining_quantity != null && data.material_id) {
+    var shMatList = tableData['material'] || [];
+    var shMat = null;
+    for (var i=0; i<shMatList.length; i++) {
+      if (String(shMatList[i].id) === String(data.material_id)) { shMat = shMatList[i]; break; }
+    }
+    var alertQty = shMat ? (shMat.alert_quantity || 0) : 0;
+    var unit = shMat ? (shMat.unit || '') : '';
+    data.need_restock = data.remaining_quantity <= alertQty;
+    if (data.need_restock) data.restock_suggestion = '需补货' + (alertQty - data.remaining_quantity + 5) + unit;
   }
   var btn = document.getElementById('modalSaveBtn');
   btn.disabled = true; btn.textContent = '保存中...';
@@ -887,6 +926,32 @@ async function saveModalData() {
     }
     if (!res) throw new Error('网络连接失败，请检查网络或Supabase配置');
     if (res.error) throw res.error;
+    // 库存联动更新
+    if (['purchase','return','inventory_check'].indexOf(editingTable) >= 0 && data.material_id) {
+      var matId = data.material_id;
+      var delta = 0;
+      var setQty = null;
+      if (editingTable === 'purchase') {
+        var oldQty = editingId ? (await getOldRecordValue(editingTable, editingId, 'quantity')) : 0;
+        delta = (data.quantity || 0) - oldQty;
+      } else if (editingTable === 'return') {
+        var oldRetQty = editingId ? (await getOldRecordValue(editingTable, editingId, 'return_quantity')) : 0;
+        delta = -(data.return_quantity || 0) + oldRetQty;
+      } else if (editingTable === 'inventory_check') {
+        setQty = data.actual_quantity || 0;
+      }
+      if (setQty !== null) {
+        await sb.from('material').update({stock_quantity: setQty}).eq('id', matId);
+        refCache['material'] = null;
+      } else if (delta !== 0) {
+        var cur = await sb.from('material').select('stock_quantity').eq('id', matId).single();
+        var curQty = (cur && !cur.error && cur.data) ? (cur.data.stock_quantity || 0) : 0;
+        var newQty = curQty + delta;
+        if (newQty < 0) newQty = 0;
+        await sb.from('material').update({stock_quantity: newQty}).eq('id', matId);
+        refCache['material'] = null;
+      }
+    }
     showToast('保存成功', 'success');
     closeModal();
     loadTableData(editingTable);
@@ -903,13 +968,70 @@ async function saveModalData() {
   }
 }
 
+// ============ 库存关联辅助函数 ============
+function updateInventoryBookQty() {
+  var matId = document.getElementById('field_material_id').value;
+  var el = document.getElementById('field_book_quantity');
+  if (!el || !matId) return;
+  var list = tableData['material'] || [];
+  for (var i=0; i<list.length; i++) {
+    if (String(list[i].id) === String(matId)) {
+      el.value = list[i].stock_quantity || 0;
+      el.readOnly = true;
+      el.style.background = '#f5f5f5';
+      return;
+    }
+  }
+  el.value = '';
+}
+
+function updateShiftHandoverAlert() {
+  var matId = document.getElementById('field_material_id').value;
+  if (!matId) return;
+  var list = tableData['material'] || [];
+  for (var i=0; i<list.length; i++) {
+    if (String(list[i].id) === String(matId)) {
+      var remEl = document.getElementById('field_remaining_quantity');
+      if (remEl) {
+        remEl.placeholder = '当前库存' + (list[i].stock_quantity || 0) + (list[i].unit || '') + ',预警值' + (list[i].alert_quantity || 0);
+      }
+      return;
+    }
+  }
+}
+
 // ============ 删除 ============
 async function deleteRecord(tableKey, rowId) {
   if (!confirm('确定删除这条记录吗?')) return;
   var def = TABLES[tableKey];
   try {
+    // 删除前记录库存影响，用于回退
+    var oldRow = null;
+    if (['purchase','return','inventory_check'].indexOf(tableKey) >= 0) {
+      var oldRes = await sb.from(def.table).select('*').eq('id', rowId).single();
+      if (oldRes && !oldRes.error && oldRes.data) oldRow = oldRes.data;
+    }
     var res = await sb.from(def.table).delete().eq('id', rowId);
     if (res.error) throw res.error;
+    // 回退物料库存
+    if (oldRow && oldRow.material_id) {
+      var matId = oldRow.material_id;
+      var delta = 0;
+      var setQty = null;
+      if (tableKey === 'purchase') delta = -(oldRow.quantity || 0);
+      else if (tableKey === 'return') delta = (oldRow.return_quantity || 0);
+      else if (tableKey === 'inventory_check') setQty = oldRow.book_quantity || 0;
+      if (setQty !== null) {
+        await sb.from('material').update({stock_quantity: setQty}).eq('id', matId);
+      } else if (delta !== 0) {
+        var cur = await sb.from('material').select('stock_quantity').eq('id', matId).single();
+        var curQty = (cur && !cur.error && cur.data) ? (cur.data.stock_quantity || 0) : 0;
+        var newQty = curQty + delta;
+        if (newQty < 0) newQty = 0;
+        await sb.from('material').update({stock_quantity: newQty}).eq('id', matId);
+      }
+      refCache['material'] = null;
+    }
     showToast('删除成功', 'success');
     loadTableData(tableKey);
     loadDashboardData();
