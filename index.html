@@ -840,6 +840,8 @@ function updateRefSelects(refFields, targetKey) {
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('active');
+  var btn = document.getElementById('modalSaveBtn');
+  if (btn) { btn.disabled = false; btn.textContent = '保存'; }
   editingId = null;
   editingTable = null;
 }
