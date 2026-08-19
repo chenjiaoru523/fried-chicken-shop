@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>炸鸡店门店管理系统</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#e65100;--primary-light:#ffb74d;--primary-dark:#bf360c;--bg:#f5f5f5;--card-bg:#fff;--text:#333;--text-light:#666;--border:#e0e0e0;--success:#4caf50;--danger:#f44336;--warning:#ff9800;--info:#2196f3;--sidebar-bg:#263238;--sidebar-text:#b0bec5;--sidebar-active:#e65100}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+#loginPage{display:flex;justify-content:center;align-items:center;min-height:100vh;background:linear-gradient(135deg,#e65100,#bf360c)}
+.login-card{background:#fff;border-radius:16px;padding:40px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-card h1{text-align:center;color:var(--primary);font-size:22px;margin-bottom:8px}
+.login-card .subtitle{text-align:center;color:var(--text-light);font-size:13px;margin-bottom:28px}
+.login-card .input-group{margin-bottom:16px}
+.login-card label{display:block;margin-bottom:6px;font-size:13px;color:var(--text-light)}
+.login-card input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:8px;font-size:15px;transition:border-color .2s}
+.login-card input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(230,81,0,.1)}
+.login-btn{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:background .2s;margin-top:8px}
+.login-btn:hover{background:var(--primary-dark)}
+.login-error{color:var(--danger);font-size:13px;text-align:center;margin-top:12px;min-height:20px}
+.login-hint{text-align:center;margin-top:16px;font-size:12px;color:var(--text-light)}
+.login-hint a{color:var(--primary);text-decoration:none}
+#mainPage{display:flex;min-height:100vh}
+#sidebar{width:220px;background:var(--sidebar-bg);color:var(--sidebar-text);position:fixed;height:100vh;overflow-y:auto;z-index:100;transition:transform .3s}
+#sidebar .logo{padding:20px 18px;font-size:17px;font-weight:700;color:#fff;border-bottom:1px solid rgba(255,255,255,.1)}
+#sidebar .nav{padding:8px 0}
+#sidebar .nav-group{margin-bottom:4px}
+#sidebar .nav-group-title{padding:8px 18px 4px;font-size:11px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:1px}
+#sidebar .nav-item{display:flex;align-items:center;padding:10px 18px;cursor:pointer;transition:all .2s;border-left:3px solid transparent;font-size:14px}
+#sidebar .nav-item:hover{background:rgba(255,255,255,.08);color:#fff}
+#sidebar .nav-item.active{background:rgba(230,81,0,.15);color:var(--primary-light);border-left-color:var(--sidebar-active)}
+#sidebar .nav-item .icon{margin-right:10px;font-size:16px;width:20px;text-align:center}
+#sidebar .user-info{padding:14px 18px;border-top:1px solid rgba(255,255,255,.1);position:absolute;bottom:0;left:0;right:0;background:var(--sidebar-bg)}
+#sidebar .user-info .name{color:#fff;font-size:13px;font-weight:600}
+#sidebar .user-info .role{color:var(--text-light);font-size:11px}
+#sidebar .user-info .logout-btn{float:right;color:var(--sidebar-text);cursor:pointer;font-size:18px;transition:color .2s}
+#sidebar .user-info .logout-btn:hover{color:var(--danger)}
+#content{margin-left:220px;flex:1;padding:20px 28px;min-width:0}
+.page-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.page-header h2{font-size:20px;font-weight:700}
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card-bg);border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.stat-card .stat-label{font-size:13px;color:var(--text-light);margin-bottom:8px}
+.stat-card .stat-value{font-size:28px;font-weight:700;color:var(--primary)}
+.stat-card .stat-sub{font-size:12px;color:var(--text-light);margin-top:4px}
+.stat-card.warning .stat-value{color:var(--warning)}
+.stat-card.danger .stat-value{color:var(--danger)}
+.stat-card.success .stat-value{color:var(--success)}
+.chart-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.chart-card{background:var(--card-bg);border-radius:12px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.chart-card h3{font-size:15px;font-weight:600;margin-bottom:16px}
+.chart-card canvas{max-height:240px}
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.toolbar .search-box{display:flex;gap:8px;align-items:center}
+.toolbar input[type=text]{padding:8px 14px;border:1px solid var(--border);border-radius:6px;font-size:14px;width:220px}
+.toolbar select{padding:8px 14px;border:1px solid var(--border);border-radius:6px;font-size:14px}
+.btn{padding:8px 18px;border:none;border-radius:6px;font-size:14px;cursor:pointer;transition:all .2s;font-weight:500}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--primary-dark)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#d32f2f}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-outline:hover{background:#f0f0f0}
+.btn-sm{padding:4px 10px;font-size:12px}
+.table-wrap{background:var(--card-bg);border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead{background:#fafafa}
+th{padding:12px 14px;text-align:left;font-weight:600;color:var(--text-light);border-bottom:2px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody tr:hover{background:#fafafa}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:12px;font-weight:500}
+.tag-success{background:#e8f5e9;color:#2e7d32}
+.tag-warning{background:#fff3e0;color:#e65100}
+.tag-danger{background:#ffebee;color:#c62828}
+.tag-info{background:#e3f2fd;color:#1565c0}
+.tag-default{background:#f5f5f5;color:#666}
+.empty-row{text-align:center;padding:40px;color:var(--text-light)}
+#modalOverlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:1000;justify-content:center;align-items:flex-start;padding-top:60px;overflow-y:auto}
+#modalOverlay.active{display:flex}
+.modal{background:#fff;border-radius:12px;width:560px;max-width:92vw;max-height:80vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{display:flex;justify-content:space-between;align-items:center;padding:16px 24px;border-bottom:1px solid var(--border)}
+.modal-header h3{font-size:17px;font-weight:600}
+.modal-close{font-size:24px;cursor:pointer;color:var(--text-light);line-height:1;background:none;border:none}
+.modal-body{padding:20px 24px;overflow-y:auto}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{margin-bottom:0}
+.form-group.full{grid-column:1/-1}
+.form-group label{display:block;margin-bottom:6px;font-size:13px;color:var(--text-light)}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;transition:border-color .2s}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(230,81,0,.1)}
+.form-group textarea{resize:vertical;min-height:60px}
+.form-group .required-mark{color:var(--danger);margin-left:2px}
+.modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)}
+#toast{position:fixed;top:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+.toast-item{background:#333;color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.3);animation:slideIn .3s ease;display:flex;align-items:center;gap:8px}
+.toast-item.success{background:var(--success)}
+.toast-item.error{background:var(--danger)}
+.toast-item.warning{background:var(--warning)}
+.toast-item.info{background:var(--info)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.config-banner{background:#fff3e0;border:1px solid var(--warning);border-radius:8px;padding:16px;margin-bottom:20px}
+.config-banner h3{color:var(--warning);font-size:15px;margin-bottom:8px}
+.config-banner p{font-size:13px;color:var(--text-light);line-height:1.8}
+.config-banner code{background:#fff3cd;padding:2px 6px;border-radius:4px;font-size:12px;color:var(--primary-dark)}
+.loading{display:flex;justify-content:center;align-items:center;padding:40px}
+.loading-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sync-indicator{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--success)}
+.sync-dot{width:8px;height:8px;background:var(--success);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+@media(max-width:768px){
+#sidebar{transform:translateX(-100%)}
+#sidebar.open{transform:translateX(0)}
+#content{margin-left:0;padding:16px}
+.chart-row{grid-template-columns:1fr}
+.form-grid{grid-template-columns:1fr}
+.toolbar input[type=text]{width:140px}
+}
+.mobile-menu-btn{display:none;font-size:22px;cursor:pointer;padding:4px 8px}
+@media(max-width:768px){.mobile-menu-btn{display:block}}
+</style>
+</head>
+<body>
+
+<div id="loginPage">
+<div class="login-card">
+<h1>炸鸡店门店管理系统</h1>
+<p class="subtitle">云端同步版 - 多人实时协作</p>
+<div class="input-group">
+<label>用户名</label>
+<input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off">
+</div>
+<div class="input-group">
+<label>密码</label>
+<input type="password" id="loginPass" placeholder="请输入密码" autocomplete="off">
+</div>
+<button class="login-btn" onclick="doLogin()">登 录</button>
+<div class="login-error" id="loginError"></div>
+<div class="login-hint">
+<p>账号:徐晨/陈皎茹(管理员) | 巫芯雅/赵建翔(员工)</p>
+<p style="margin-top:4px">首次使用需配置Supabase,详见配置指南</p>
+</div>
+</div>
+</div>
+
+<div id="mainPage" style="display:none">
+<aside id="sidebar">
+<div class="logo">炸鸡店管理系统</div>
+<nav class="nav" id="navMenu"></nav>
+<div class="user-info">
+<span class="name" id="userName"></span>
+<span class="role" id="userRole"></span>
+<span class="logout-btn" onclick="doLogout()" title="退出登录">&#11037;</span>
+</div>
+</aside>
+<main id="content">
+<div id="configBanner" class="config-banner" style="display:none">
+<h3>需要配置 Supabase</h3>
+<p>本系统使用 Supabase 云端数据库存储数据。请在代码中的 <code>SUPABASE_CONFIG</code> 填入你的 Project URL 和 anon key。</p>
+<p>注册地址:<a href="https://supabase.com" target="_blank">https://supabase.com</a> (免费,邮箱注册即可)</p>
+<p>详细配置步骤请查看附带的 <code>Supabase配置指南.md</code> 文件。</p>
+</div>
+<div id="viewContainer"></div>
+</main>
+</div>
+
+<div id="modalOverlay">
+<div class="modal">
+<div class="modal-header">
+<h3 id="modalTitle">编辑</h3>
+<button class="modal-close" onclick="closeModal()">&times;</button>
+</div>
+<div class="modal-body" id="modalBody"></div>
+<div class="modal-footer">
+<button class="btn btn-outline" onclick="closeModal()">取消</button>
+<button class="btn btn-primary" id="modalSaveBtn" onclick="saveModalData()">保存</button>
+</div>
+</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ============ 配置区 ============
+const SUPABASE_CONFIG = {
+  url: 'https://yibagljwhdpvbwyvmxwe.supabase.co',
+  anonKey: 'sb_publishable_DRFyBNfbAM6BX2cQaJyrxQ_ZIrzIrzq'
+};
+
+const USERS = {
+  xuchen:       { password: 'xc888',  name: '徐晨',   role: 'admin' },
+  chenjiaoru:   { password: 'cjr888', name: '陈皎茹', role: 'admin' },
+  wuxinya:      { password: 'wxy0320', name: '巫芯雅', role: 'employee' },
+  zhaojianxiang:{ password: 'zjx666', name: '赵建翔', role: 'employee' }
+};
+
+const PERMISSIONS = {
+  admin: { hidden: [], canAdd: true, canEdit: true, canDelete: true },
+  employee: { hidden: ['salary'], canAdd: ['shift_handover','attendance','leave','inventory_check'], canEdit: ['shift_handover','attendance','leave','inventory_check'], canDelete: [] }
+};
+
+const TABLES = {
+  supplier: { label:'供应商', icon:'\uD83C\uDFEA', group:'基础数据', table:'supplier', fields:[
+    {key:'supplier_id',label:'编号',type:'text',required:true},
+    {key:'name',label:'名称',type:'text',required:true},
+    {key:'channel_type',label:'渠道类型',type:'select',options:['线下批发','线上采购','厂家直供','农贸散户']},
+    {key:'contact_person',label:'联系人',type:'text'},
+    {key:'phone',label:'电话',type:'text'},
+    {key:'supply_category',label:'供应品类',type:'text'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  material: { label:'物料', icon:'\uD83D\uDCE6', group:'基础数据', table:'material', fields:[
+    {key:'material_id',label:'物料编号',type:'text',required:true},
+    {key:'name',label:'名称',type:'text',required:true},
+    {key:'category',label:'分类',type:'select',options:['肉类','面食类','油料类','调料类','饮品类','包装类','蔬菜类','其他']},
+    {key:'unit',label:'单位',type:'select',options:['kg','斤','个','包','瓶','箱','L','份']},
+    {key:'price',label:'单价(元)',type:'number'},
+    {key:'stock_quantity',label:'库存数量',type:'number'},
+    {key:'alert_quantity',label:'库存预警值',type:'number'},
+    {key:'supplier_id',label:'供应商',type:'ref',target:'supplier',displayKey:'name'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  employee: { label:'员工', icon:'\uD83D\uDC64', group:'基础数据', table:'employee', fields:[
+    {key:'name',label:'姓名',type:'text',required:true},
+    {key:'position',label:'岗位',type:'select',options:['店长','后厨','前台','配送员','兼职']},
+    {key:'phone',label:'手机号',type:'text'},
+    {key:'hire_date',label:'入职日期',type:'date'},
+    {key:'status',label:'状态',type:'select',options:['在职','离职','试用期']},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  purchase: { label:'进货入库', icon:'\uD83D\uDE9A', group:'库存管理', table:'purchase', fields:[
+    {key:'date',label:'日期',type:'date',required:true},
+    {key:'material_id',label:'物料',type:'ref',target:'material',displayKey:'name',required:true},
+    {key:'supplier_id',label:'供应商',type:'ref',target:'supplier',displayKey:'name'},
+    {key:'quantity',label:'数量',type:'number',required:true},
+    {key:'unit_price',label:'单价(元)',type:'number'},
+    {key:'total_price',label:'总价(元)',type:'number'},
+    {key:'handler',label:'经手人',type:'text'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  return: { label:'退货', icon:'\u21A9\uFE0F', group:'库存管理', table:'return', fields:[
+    {key:'date',label:'日期',type:'date',required:true},
+    {key:'material_id',label:'物料',type:'ref',target:'material',displayKey:'name',required:true},
+    {key:'supplier_id',label:'供应商',type:'ref',target:'supplier',displayKey:'name'},
+    {key:'return_quantity',label:'退货数量',type:'number',required:true},
+    {key:'return_reason',label:'退货原因',type:'text'},
+    {key:'handler',label:'经手人',type:'text'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  inventory_check: { label:'每日盘点', icon:'\uD83D\uDCCB', group:'库存管理', table:'inventory_check', fields:[
+    {key:'date',label:'日期',type:'date',required:true},
+    {key:'material_id',label:'物料',type:'ref',target:'material',displayKey:'name',required:true},
+    {key:'actual_quantity',label:'盘点数量',type:'number',required:true},
+    {key:'book_quantity',label:'账面数量',type:'number'},
+    {key:'difference',label:'差异',type:'number'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  shift_handover: { label:'交接班', icon:'\uD83D\uDD04', group:'日常运营', table:'shift_handover', fields:[
+    {key:'date',label:'日期',type:'date',required:true},
+    {key:'shift',label:'班次',type:'select',options:['早班','午班','晚班'],required:true},
+    {key:'handover_person',label:'交接人',type:'text',required:true},
+    {key:'receiver',label:'接班人',type:'text',required:true},
+    {key:'material_id',label:'物料名称',type:'ref',target:'material',displayKey:'name',required:true},
+    {key:'remaining_quantity',label:'剩余数量',type:'number',required:true},
+    {key:'unit',label:'单位',type:'select',options:['kg','斤','个','包','瓶','箱','L','份']},
+    {key:'alert_quantity',label:'库存预警值',type:'number'},
+    {key:'need_restock',label:'是否需补货',type:'boolean'},
+    {key:'restock_suggestion',label:'补货建议',type:'text'},
+    {key:'daily_revenue',label:'当日营业额(元)',type:'number'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  attendance: { label:'打卡', icon:'\u23F0', group:'日常运营', table:'attendance', fields:[
+    {key:'date',label:'日期',type:'date',required:true},
+    {key:'employee_id',label:'员工',type:'ref',target:'employee',displayKey:'name',required:true},
+    {key:'clock_in_time',label:'上班时间',type:'text'},
+    {key:'clock_out_time',label:'下班时间',type:'text'},
+    {key:'status',label:'打卡状态',type:'select',options:['正常','迟到','早退','缺卡']},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  leave: { label:'请假', icon:'\uD83D\uDCC5', group:'日常运营', table:'leave', fields:[
+    {key:'employee_id',label:'员工',type:'ref',target:'employee',displayKey:'name',required:true},
+    {key:'start_date',label:'开始日期',type:'date',required:true},
+    {key:'end_date',label:'结束日期',type:'date',required:true},
+    {key:'leave_type',label:'请假类型',type:'select',options:['事假','病假','年假','调休','婚假','产假']},
+    {key:'approval_status',label:'审批状态',type:'select',options:['待审批','已批准','已驳回']},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  salary: { label:'薪资', icon:'\uD83D\uDCB0', group:'财务管理', table:'salary', fields:[
+    {key:'month',label:'月份',type:'text',required:true},
+    {key:'employee_id',label:'员工',type:'ref',target:'employee',displayKey:'name',required:true},
+    {key:'base_salary',label:'基本工资(元)',type:'number'},
+    {key:'hourly_rate',label:'时薪(元)',type:'number'},
+    {key:'work_hours',label:'工时',type:'number'},
+    {key:'deduction',label:'扣款(元)',type:'number'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  delivery_platform: { label:'外卖平台', icon:'\uD83D\uDEB5', group:'财务管理', table:'delivery_platform', fields:[
+    {key:'date',label:'日期',type:'date',required:true},
+    {key:'platform_name',label:'平台名称',type:'select',options:['美团','饿了么','抖音','小程序','其他'],required:true},
+    {key:'order_count',label:'订单数',type:'number'},
+    {key:'revenue',label:'营业额(元)',type:'number'},
+    {key:'commission_rate',label:'佣金比例(%)',type:'number'},
+    {key:'commission_amount',label:'佣金金额(元)',type:'number'},
+    {key:'subsidy',label:'满减补贴(元)',type:'number'},
+    {key:'net_income',label:'净收入(元)',type:'number'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]},
+  daily_expense: { label:'日常支出', icon:'\uD83D\uDCB8', group:'财务管理', table:'daily_expense', fields:[
+    {key:'date',label:'日期',type:'date',required:true},
+    {key:'expense_type',label:'支出类型',type:'select',options:['水电费','燃气费','房租','物料采购','设备维修','交通费','餐饮费','其他'],required:true},
+    {key:'amount',label:'金额(元)',type:'number',required:true},
+    {key:'handler',label:'经手人',type:'text'},
+    {key:'remark',label:'备注',type:'textarea'}
+  ]}
+};
+
+// ============ 全局状态 ============
+var sb = null;
+var currentUser = null;
+var currentTable = null;
+var tableData = {};
+var refCache = {};
+var channels = {};
+var editingId = null;
+var editingTable = null;
+var charts = {};
+
+// ============ 初始化 ============
+function initApp() {
+  var saved = sessionStorage.getItem('currentUser');
+  if (saved) {
+    currentUser = JSON.parse(saved);
+    showMainPage();
+  } else {
+    showLoginPage();
+  }
+  if (SUPABASE_CONFIG.url === 'YOUR_PROJECT_URL') {
+    setTimeout(function(){
+      document.getElementById('configBanner').style.display = 'block';
+    }, 500);
+  } else {
+    sb = supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+  }
+}
+
+// ============ 登录 ============
+function doLogin() {
+  var user = document.getElementById('loginUser').value.trim().toLowerCase();
+  var pass = document.getElementById('loginPass').value.trim();
+  var err = document.getElementById('loginError');
+  var username = user;
+  for (var key in USERS) {
+    if (USERS[key].name === user) { username = key; break; }
+  }
+  if (USERS[username] && USERS[username].password === pass) {
+    currentUser = { username: username, name: USERS[username].name, role: USERS[username].role };
+    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+    showMainPage();
+  } else {
+    err.textContent = '用户名或密码错误';
+  }
+}
+
+function doLogout() {
+  sessionStorage.removeItem('currentUser');
+  currentUser = null;
+  for (var key in channels) { try { channels[key].unsubscribe(); } catch(e){} }
+  channels = {};
+  showLoginPage();
+}
+
+function showLoginPage() {
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('mainPage').style.display = 'none';
+}
+
+function showMainPage() {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('mainPage').style.display = 'flex';
+  document.getElementById('userName').textContent = currentUser.name;
+  document.getElementById('userRole').textContent = currentUser.role === 'admin' ? '管理员' : '员工';
+  buildNavMenu();
+  showDashboard();
+  initRealtimeSync();
+}
+
+// ============ 导航菜单 ============
+function buildNavMenu() {
+  var html = '<div class="nav-group"><div class="nav-group-title">总览</div>' +
+    '<div class="nav-item active" onclick="showDashboard()" data-page="dashboard"><span class="icon">\uD83D\uDCCA</span>仪表盘</div></div>';
+  var groups = {};
+  for (var key in TABLES) {
+    var t = TABLES[key];
+    if (!groups[t.group]) groups[t.group] = [];
+    groups[t.group].push({key:key, def:t});
+  }
+  var perm = PERMISSIONS[currentUser.role];
+  for (var g in groups) {
+    html += '<div class="nav-group"><div class="nav-group-title">' + g + '</div>';
+    for (var i=0; i<groups[g].length; i++) {
+      var item = groups[g][i];
+      if (perm.hidden.indexOf(item.key) >= 0) continue;
+      html += '<div class="nav-item" onclick="showTable(\'' + item.key + '\')" data-page="' + item.key + '"><span class="icon">' + item.def.icon + '</span>' + item.def.label + '</div>';
+    }
+    html += '</div>';
+  }
+  document.getElementById('navMenu').innerHTML = html;
+}
+
+function setActiveNav(page) {
+  var items = document.querySelectorAll('.nav-item');
+  for (var i=0; i<items.length; i++) items[i].classList.remove('active');
+  var el = document.querySelector('[data-page="' + page + '"]');
+  if (el) el.classList.add('active');
+}
+
+// ============ 仪表盘 ============
+function showDashboard() {
+  setActiveNav('dashboard');
+  currentTable = null;
+  var html = '<div class="page-header"><h2>\uD83D\uDCCA 仪表盘</h2>' +
+    '<span class="sync-indicator"><span class="sync-dot"></span>云端实时同步</span></div>' +
+    '<div class="stat-cards" id="statCards"><div class="loading"><div class="loading-spinner"></div></div></div>';
+  if (currentUser.role === 'admin') {
+    html += '<div class="chart-row"><div class="chart-card"><h3>库存预警</h3><canvas id="chartAlert"></canvas></div>' +
+      '<div class="chart-card"><h3>外卖平台收入占比</h3><canvas id="chartPlatform"></canvas></div></div>' +
+      '<div class="chart-row"><div class="chart-card"><h3>近7天营业额</h3><canvas id="chartRevenue"></canvas></div>' +
+      '<div class="chart-card"><h3>支出趋势</h3><canvas id="chartExpense"></canvas></div></div>';
+  }
+  document.getElementById('viewContainer').innerHTML = html;
+  loadDashboardData();
+}
+
+async function loadDashboardData() {
+  if (!sb) return;
+  var counts = {};
+  var tablesToQuery = ['supplier','material','employee'];
+  if (currentUser.role === 'admin') {
+    tablesToQuery = tablesToQuery.concat(['purchase','return','salary','daily_expense','delivery_platform']);
+  } else {
+    tablesToQuery = tablesToQuery.concat(['shift_handover','attendance']);
+  }
+  for (var i=0; i<tablesToQuery.length; i++) {
+    try {
+      var def = TABLES[tablesToQuery[i]];
+      var res = await sb.from(def.table).select('*').limit(1000);
+      if (!res.error) {
+        counts[tablesToQuery[i]] = res.data.length;
+        tableData[tablesToQuery[i]] = res.data;
+      } else {
+        counts[tablesToQuery[i]] = 0;
+        tableData[tablesToQuery[i]] = [];
+      }
+    } catch(e) {
+      counts[tablesToQuery[i]] = 0;
+      tableData[tablesToQuery[i]] = [];
+    }
+  }
+  renderDashboard(counts);
+}
+
+function renderDashboard(counts) {
+  var html = '';
+  html += statCard('物料总数', counts.material || 0, '种', '');
+  html += statCard('供应商总数', counts.supplier || 0, '家', '');
+  html += statCard('员工总数', counts.employee || 0, '人', '');
+  if (currentUser.role === 'admin') {
+    html += statCard('进货记录', counts.purchase || 0, '条', '');
+    html += statCard('退货记录', counts.return || 0, '条', 'warning');
+    html += statCard('外卖记录', counts.delivery_platform || 0, '条', 'success');
+    html += statCard('支出记录', counts.daily_expense || 0, '条', '');
+    html += statCard('薪资记录', counts.salary || 0, '条', '');
+    var totalExpense = 0;
+    if (tableData.daily_expense) {
+      for (var i=0; i<tableData.daily_expense.length; i++) totalExpense += (tableData.daily_expense[i].amount || 0);
+    }
+    html += statCard('总支出', '\u00A5' + totalExpense.toFixed(2), '元', 'danger');
+    var totalRevenue = 0;
+    if (tableData.delivery_platform) {
+      for (var i=0; i<tableData.delivery_platform.length; i++) totalRevenue += (tableData.delivery_platform[i].revenue || 0);
+    }
+    html += statCard('总营业额', '\u00A5' + totalRevenue.toFixed(2), '元', 'success');
+  } else {
+    html += statCard('交接班记录', counts.shift_handover || 0, '条', 'success');
+    html += statCard('打卡记录', counts.attendance || 0, '条', '');
+  }
+  document.getElementById('statCards').innerHTML = html;
+  if (currentUser.role === 'admin') renderCharts();
+}
+
+function statCard(label, value, sub, cls) {
+  return '<div class="stat-card ' + cls + '"><div class="stat-label">' + label + '</div>' +
+    '<div class="stat-value">' + value + '</div><div class="stat-sub">' + sub + '</div></div>';
+}
+
+function renderCharts() {
+  if (tableData.material && tableData.material.length > 0) {
+    var alertData = [];
+    for (var i=0; i<tableData.material.length; i++) {
+      var stock = tableData.material[i].stock_quantity || 0;
+      var alert = tableData.material[i].alert_quantity || 0;
+      if (stock <= alert && alert > 0) alertData.push({name: tableData.material[i].name, stock: stock, alert: alert});
+    }
+    if (alertData.length > 0) {
+      var ctx = document.getElementById('chartAlert');
+      if (ctx) {
+        charts.alert = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: alertData.map(function(d){return d.name}),
+            datasets: [{label:'库存',data:alertData.map(function(d){return d.stock}),backgroundColor:'#ff9800'},
+              {label:'预警值',data:alertData.map(function(d){return d.alert}),backgroundColor:'#f44336'}]
+          },
+          options: {responsive:true,plugins:{legend:{position:'bottom'}}}
+        });
+      }
+    }
+  }
+  if (tableData.delivery_platform && tableData.delivery_platform.length > 0) {
+    var platformMap = {};
+    for (var i=0; i<tableData.delivery_platform.length; i++) {
+      var name = tableData.delivery_platform[i].platform_name || '其他';
+      var rev = tableData.delivery_platform[i].revenue || 0;
+      platformMap[name] = (platformMap[name] || 0) + rev;
+    }
+    var ctx = document.getElementById('chartPlatform');
+    if (ctx) {
+      charts.platform = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(platformMap),
+          datasets: [{data: Object.values(platformMap), backgroundColor:['#e65100','#2196f3','#4caf50','#ff9800','#9c27b0']}]
+        },
+        options: {responsive:true,plugins:{legend:{position:'right'}}}
+      });
+    }
+    var dateMap = {};
+    for (var i=0; i<tableData.delivery_platform.length; i++) {
+      var d = tableData.delivery_platform[i].date;
+      var r = tableData.delivery_platform[i].revenue || 0;
+      if (d) dateMap[d] = (dateMap[d] || 0) + r;
+    }
+    var sortedDates = Object.keys(dateMap).sort();
+    var recent7 = sortedDates.slice(-7);
+    var ctx2 = document.getElementById('chartRevenue');
+    if (ctx2) {
+      charts.revenue = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels: recent7,
+          datasets: [{label:'营业额',data:recent7.map(function(d){return dateMap[d]}),borderColor:'#e65100',backgroundColor:'rgba(230,81,0,.1)',fill:true,tension:.3}]
+        },
+        options: {responsive:true,plugins:{legend:{display:false}}}
+      });
+    }
+  }
+  if (tableData.daily_expense && tableData.daily_expense.length > 0) {
+    var expMap = {};
+    for (var i=0; i<tableData.daily_expense.length; i++) {
+      var d = tableData.daily_expense[i].date;
+      var a = tableData.daily_expense[i].amount || 0;
+      if (d) expMap[d] = (expMap[d] || 0) + a;
+    }
+    var sortedExpDates = Object.keys(expMap).sort();
+    var recent7exp = sortedExpDates.slice(-7);
+    var ctx3 = document.getElementById('chartExpense');
+    if (ctx3) {
+      charts.expense = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+          labels: recent7exp,
+          datasets: [{label:'支出',data:recent7exp.map(function(d){return expMap[d]}),backgroundColor:'#f44336'}]
+        },
+        options: {responsive:true,plugins:{legend:{display:false}}}
+      });
+    }
+  }
+}
+
+// ============ 数据表视图 ============
+function showTable(tableKey) {
+  setActiveNav(tableKey);
+  currentTable = tableKey;
+  var def = TABLES[tableKey];
+  var perm = PERMISSIONS[currentUser.role];
+  var canAdd = perm.canAdd === true || (Array.isArray(perm.canAdd) && perm.canAdd.indexOf(tableKey) >= 0);
+  var canEdit = perm.canEdit === true || (Array.isArray(perm.canEdit) && perm.canEdit.indexOf(tableKey) >= 0);
+  var canDelete = perm.canDelete === true || (Array.isArray(perm.canDelete) && perm.canDelete.indexOf(tableKey) >= 0);
+  var html = '<div class="page-header"><h2>' + def.icon + ' ' + def.label + '</h2>' +
+    '<span class="sync-indicator"><span class="sync-dot"></span>云端同步</span></div>' +
+    '<div class="toolbar"><div class="search-box">' +
+    '<input type="text" id="searchInput" placeholder="搜索..." oninput="filterTable()"></div>' +
+    '<div>' + (canAdd ? '<button class="btn btn-primary" onclick="openAddModal(\'' + tableKey + '\')">+ 新增</button>' : '') +
+    '</div></div>' +
+    '<div class="table-wrap"><table id="dataTable"><thead><tr></tr></thead><tbody id="tableBody">' +
+    '<tr class="empty-row"><td><div class="loading"><div class="loading-spinner"></div></div></td></tr>' +
+    '</tbody></table></div>';
+  document.getElementById('viewContainer').innerHTML = html;
+  var thead = document.querySelector('#dataTable thead tr');
+  var thHtml = '';
+  for (var i=0; i<def.fields.length; i++) thHtml += '<th>' + def.fields[i].label + '</th>';
+  if (canEdit || canDelete) thHtml += '<th>操作</th>';
+  thead.innerHTML = thHtml;
+  loadTableData(tableKey);
+}
+
+async function loadTableData(tableKey) {
+  if (!sb) {
+    document.getElementById('tableBody').innerHTML = '<tr class="empty-row"><td>请先配置 Supabase</td></tr>';
+    return;
+  }
+  var def = TABLES[tableKey];
+  try {
+    var res = await sb.from(def.table).select('*').order('created_at', {ascending:false}).limit(1000);
+    if (res.error) throw res.error;
+    tableData[tableKey] = res.data;
+    renderTableRows(tableKey, res.data);
+  } catch(err) {
+    document.getElementById('tableBody').innerHTML = '<tr class="empty-row"><td>加载失败:' + escapeHtml(err.message) + '</td></tr>';
+  }
+}
+
+function renderTableRows(tableKey, results) {
+  var def = TABLES[tableKey];
+  var perm = PERMISSIONS[currentUser.role];
+  var canEdit = perm.canEdit === true || (Array.isArray(perm.canEdit) && perm.canEdit.indexOf(tableKey) >= 0);
+  var canDelete = perm.canDelete === true || (Array.isArray(perm.canDelete) && perm.canDelete.indexOf(tableKey) >= 0);
+  var searchTerm = (document.getElementById('searchInput') || {}).value || '';
+  var filtered = results;
+  if (searchTerm) {
+    filtered = results.filter(function(row) {
+      for (var i=0; i<def.fields.length; i++) {
+        var val = getDisplayValue(row, def.fields[i]);
+        if (val && String(val).indexOf(searchTerm) >= 0) return true;
+      }
+      return false;
+    });
+  }
+  if (filtered.length === 0) {
+    var cols = def.fields.length + (canEdit || canDelete ? 1 : 0);
+    document.getElementById('tableBody').innerHTML = '<tr class="empty-row"><td colspan="' + cols + '">暂无数据</td></tr>';
+    return;
+  }
+  var html = '';
+  for (var i=0; i<filtered.length; i++) {
+    var row = filtered[i];
+    html += '<tr>';
+    for (var j=0; j<def.fields.length; j++) html += '<td>' + formatCell(row, def.fields[j]) + '</td>';
+    if (canEdit || canDelete) {
+      html += '<td style="white-space:nowrap">';
+      if (canEdit) html += '<button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + tableKey + '\',\'' + row.id + '\')">编辑</button> ';
+      if (canDelete) html += '<button class="btn btn-danger btn-sm" onclick="deleteRecord(\'' + tableKey + '\',\'' + row.id + '\')">删除</button>';
+      html += '</td>';
+    }
+    html += '</tr>';
+  }
+  document.getElementById('tableBody').innerHTML = html;
+}
+
+function filterTable() {
+  if (currentTable && tableData[currentTable]) renderTableRows(currentTable, tableData[currentTable]);
+}
+
+function getDisplayValue(row, field) {
+  if (field.type === 'ref') {
+    var refId = row[field.key];
+    if (!refId) return '';
+    var cache = refCache[field.target];
+    if (cache) {
+      for (var i=0; i<cache.length; i++) {
+        if (cache[i].id === refId) return cache[i][field.displayKey] || refId;
+      }
+    }
+    return refId;
+  }
+  return row[field.key];
+}
+
+function formatCell(row, field) {
+  var val = getDisplayValue(row, field);
+  if (val === null || val === undefined || val === '') return '<span style="color:#ccc">-</span>';
+  if (field.type === 'boolean') return val ? '<span class="tag tag-danger">需补货</span>' : '<span class="tag tag-success">正常</span>';
+  if (field.key === 'status' || field.key === 'approval_status') {
+    var cls = 'tag-default';
+    if (val === '正常' || val === '已批准' || val === '在职') cls = 'tag-success';
+    if (val === '迟到' || val === '早退' || val === '待审批' || val === '试用期') cls = 'tag-warning';
+    if (val === '缺卡' || val === '已驳回' || val === '离职') cls = 'tag-danger';
+    return '<span class="tag ' + cls + '">' + escapeHtml(val) + '</span>';
+  }
+  if (field.type === 'number') return '<span style="font-weight:600">' + escapeHtml(val) + '</span>';
+  return escapeHtml(val);
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, function(m) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+  });
+}
+
+function escapeAttr(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/"/g, '&quot;');
+}
+
+// ============ 模态框 ============
+function openAddModal(tableKey) {
+  editingId = null;
+  editingTable = tableKey;
+  var def = TABLES[tableKey];
+  document.getElementById('modalTitle').textContent = '新增' + def.label;
+  renderForm(tableKey, null);
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function openEditModal(tableKey, rowId) {
+  editingId = rowId;
+  editingTable = tableKey;
+  var def = TABLES[tableKey];
+  document.getElementById('modalTitle').textContent = '编辑' + def.label;
+  var row = null;
+  var list = tableData[tableKey] || [];
+  for (var i=0; i<list.length; i++) { if (list[i].id === rowId) { row = list[i]; break; } }
+  renderForm(tableKey, row);
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+function renderForm(tableKey, row) {
+  var def = TABLES[tableKey];
+  var html = '<div class="form-grid">';
+  var refFields = [];
+  for (var i=0; i<def.fields.length; i++) if (def.fields[i].type === 'ref') refFields.push(def.fields[i]);
+  for (var i=0; i<def.fields.length; i++) {
+    var f = def.fields[i];
+    var val = row ? (row[f.key] || '') : '';
+    var full = f.type === 'textarea' ? ' full' : '';
+    html += '<div class="form-group' + full + '">';
+    html += '<label>' + f.label + (f.required ? '<span class="required-mark">*</span>' : '') + '</label>';
+    if (f.type === 'text' || f.type === 'number' || f.type === 'date') {
+      html += '<input type="' + f.type + '" id="field_' + f.key + '" value="' + escapeAttr(val) + '" placeholder="请输入' + f.label + '">';
+    } else if (f.type === 'textarea') {
+      html += '<textarea id="field_' + f.key + '" placeholder="请输入' + f.label + '">' + escapeHtml(val) + '</textarea>';
+    } else if (f.type === 'select') {
+      html += '<select id="field_' + f.key + '"><option value="">请选择</option>';
+      for (var j=0; j<f.options.length; j++) html += '<option value="' + f.options[j] + '"' + (val === f.options[j] ? ' selected' : '') + '>' + f.options[j] + '</option>';
+      html += '</select>';
+    } else if (f.type === 'ref') {
+      var opts = refCache[f.target] || [];
+      html += '<select id="field_' + f.key + '"><option value="">请选择</option>';
+      for (var j=0; j<opts.length; j++) html += '<option value="' + opts[j].id + '"' + (val === opts[j].id ? ' selected' : '') + '>' + escapeHtml(opts[j][f.displayKey] || '') + '</option>';
+      html += '</select>';
+    } else if (f.type === 'boolean') {
+      html += '<select id="field_' + f.key + '"><option value="false"' + (!val ? ' selected' : '') + '>否</option><option value="true"' + (val ? ' selected' : '') + '>是</option></select>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('modalBody').innerHTML = html;
+  if (refFields.length > 0) loadRefOptions(refFields);
+}
+
+async function loadRefOptions(refFields) {
+  var targets = {};
+  for (var i=0; i<refFields.length; i++) targets[refFields[i].target] = true;
+  var targetKeys = Object.keys(targets);
+  for (var i=0; i<targetKeys.length; i++) {
+    var targetKey = targetKeys[i];
+    if (refCache[targetKey]) { updateRefSelects(refFields, targetKey); continue; }
+    try {
+      var def = TABLES[targetKey];
+      var res = await sb.from(def.table).select('*').limit(1000);
+      if (!res.error) {
+        refCache[targetKey] = res.data;
+        updateRefSelects(refFields, targetKey);
+      }
+    } catch(e) {}
+  }
+}
+
+function updateRefSelects(refFields, targetKey) {
+  var opts = refCache[targetKey] || [];
+  for (var i=0; i<refFields.length; i++) {
+    if (refFields[i].target !== targetKey) continue;
+    var sel = document.getElementById('field_' + refFields[i].key);
+    if (!sel) continue;
+    var currentVal = sel.value;
+    var html = '<option value="">请选择</option>';
+    for (var j=0; j<opts.length; j++) html += '<option value="' + opts[j].id + '"' + (currentVal === opts[j].id ? ' selected' : '') + '>' + escapeHtml(opts[j][refFields[i].displayKey] || '') + '</option>';
+    sel.innerHTML = html;
+    sel.value = currentVal;
+  }
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('active');
+  editingId = null;
+  editingTable = null;
+}
+
+// ============ 保存数据 ============
+async function saveModalData() {
+  if (!editingTable) return;
+  var def = TABLES[editingTable];
+  var data = {};
+  var hasError = false;
+  for (var i=0; i<def.fields.length; i++) {
+    var f = def.fields[i];
+    var el = document.getElementById('field_' + f.key);
+    if (!el) continue;
+    var val = el.value.trim();
+    if (f.required && !val) { showToast(f.label + '为必填项', 'error'); hasError = true; break; }
+    if (!val) continue;
+    if (f.type === 'number') data[f.key] = parseFloat(val) || 0;
+    else if (f.type === 'boolean') data[f.key] = val === 'true';
+    else data[f.key] = val;
+  }
+  if (hasError) return;
+  // 自动计算
+  if (editingTable === 'purchase' && data.quantity != null && data.unit_price != null) data.total_price = data.quantity * data.unit_price;
+  if (editingTable === 'inventory_check' && data.actual_quantity != null && data.book_quantity != null) data.difference = data.actual_quantity - data.book_quantity;
+  if (editingTable === 'delivery_platform' && data.revenue != null && data.commission_rate != null) {
+    data.commission_amount = data.revenue * data.commission_rate / 100;
+    data.net_income = data.revenue - (data.commission_amount || 0) + (data.subsidy || 0);
+  }
+  if (editingTable === 'shift_handover' && data.remaining_quantity != null && data.alert_quantity != null) {
+    data.need_restock = data.remaining_quantity <= data.alert_quantity;
+    if (data.need_restock) data.restock_suggestion = '需补货' + (data.alert_quantity - data.remaining_quantity + 5) + (data.unit || '');
+  }
+  var btn = document.getElementById('modalSaveBtn');
+  btn.disabled = true; btn.textContent = '保存中...';
+  try {
+    var res;
+    if (editingId) {
+      res = await sb.from(def.table).update(data).eq('id', editingId);
+    } else {
+      res = await sb.from(def.table).insert(data);
+    }
+    if (res.error) throw res.error;
+    showToast('保存成功', 'success');
+    closeModal();
+    loadTableData(editingTable);
+    loadDashboardData();
+  } catch(err) {
+    showToast('保存失败:' + err.message, 'error');
+    btn.disabled = false; btn.textContent = '保存';
+  }
+}
+
+// ============ 删除 ============
+async function deleteRecord(tableKey, rowId) {
+  if (!confirm('确定删除这条记录吗?')) return;
+  var def = TABLES[tableKey];
+  try {
+    var res = await sb.from(def.table).delete().eq('id', rowId);
+    if (res.error) throw res.error;
+    showToast('删除成功', 'success');
+    loadTableData(tableKey);
+    loadDashboardData();
+  } catch(err) {
+    showToast('删除失败:' + err.message, 'error');
+  }
+}
+
+// ============ 实时同步 ============
+function initRealtimeSync() {
+  if (!sb) return;
+  for (var tableKey in TABLES) subscribeTable(tableKey);
+}
+
+function subscribeTable(tableKey) {
+  var def = TABLES[tableKey];
+  try {
+    var ch = sb.channel('channel_' + tableKey)
+      .on('postgres_changes', {event:'*', schema:'public', table:def.table}, function(payload) {
+        onLiveDataChange(tableKey, payload.eventType);
+      })
+      .subscribe();
+    channels[tableKey] = ch;
+  } catch(e) {
+    console.warn('Realtime subscribe failed for ' + tableKey + ':', e.message);
+  }
+}
+
+function onLiveDataChange(tableKey, eventType) {
+  if (currentTable === tableKey) loadTableData(tableKey);
+  loadDashboardData();
+  var def = TABLES[tableKey];
+  if (def) {
+    var actionText = eventType === 'INSERT' ? '新增' : (eventType === 'UPDATE' ? '更新' : '删除');
+    showToast(def.label + '有数据' + actionText, 'info');
+  }
+}
+
+// ============ Toast ============
+function showToast(msg, type) {
+  var toast = document.createElement('div');
+  toast.className = 'toast-item ' + (type || '');
+  var icon = type === 'success' ? '\u2713' : (type === 'error' ? '\u2717' : (type === 'warning' ? '\u26A0' : '\u2139'));
+  toast.innerHTML = '<span>' + icon + '</span><span>' + escapeHtml(msg) + '</span>';
+  document.getElementById('toast').appendChild(toast);
+  setTimeout(function() {
+    toast.style.animation = 'slideIn .3s ease reverse';
+    setTimeout(function() { toast.remove(); }, 300);
+  }, 3000);
+}
+
+// ============ 键盘事件 ============
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
+  if (e.key === 'Escape') closeModal();
+});
+document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+// ============ 启动 ============
+initApp();
+</script>
+</body>
+</html>
