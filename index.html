@@ -121,6 +121,22 @@ tbody tr:hover{background:#fafafa}
 }
 .mobile-menu-btn{display:none;font-size:22px;cursor:pointer;padding:4px 8px}
 @media(max-width:768px){.mobile-menu-btn{display:block}}
+/* 移动端底部导航栏 */
+.mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:56px;background:#fff;border-top:1px solid var(--border);z-index:200;justify-content:space-around;align-items:center;box-shadow:0 -2px 8px rgba(0,0,0,.06)}
+.mobile-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;padding:4px 0;transition:all .2s;color:var(--text-light);font-size:11px}
+.mobile-nav-item.active{color:var(--primary)}
+.mobile-nav-item .icon{font-size:20px}
+.mobile-nav-item .label{font-size:11px}
+@media(max-width:768px){
+.mobile-nav{display:flex}
+#content{padding-bottom:72px}
+.stat-cards{grid-template-columns:repeat(2,1fr);gap:10px}
+.stat-card{padding:12px}
+.stat-card .stat-label{font-size:12px;margin-bottom:4px}
+.stat-card .stat-value{font-size:20px}
+.stat-card .stat-sub{font-size:11px}
+.chart-card canvas{max-height:180px}
+}
 </style>
 </head>
 <body>
@@ -182,6 +198,7 @@ tbody tr:hover{background:#fafafa}
 </div>
 
 <div id="toast"></div>
+<div class="mobile-nav" id="mobileNav"></div>
 
 <script>
 // ============ 配置区 ============
@@ -408,6 +425,27 @@ function buildNavMenu() {
     html += '</div>';
   }
   document.getElementById('navMenu').innerHTML = html;
+  buildMobileNav();
+}
+
+function buildMobileNav() {
+  var html = '<div class="mobile-nav-item active" onclick="showDashboard()" data-mobile="dashboard"><span class="icon">\uD83D\uDCCA</span><span class="label">仪表盘</span></div>';
+  var groups = {};
+  for (var key in TABLES) {
+    var t = TABLES[key];
+    if (!groups[t.group]) groups[t.group] = [];
+    groups[t.group].push({key:key, def:t});
+  }
+  var perm = PERMISSIONS[currentUser.role];
+  for (var g in groups) {
+    for (var i=0; i<groups[g].length; i++) {
+      var item = groups[g][i];
+      if (perm.hidden.indexOf(item.key) >= 0) continue;
+      html += '<div class="mobile-nav-item" onclick="showTable(\'' + item.key + '\')" data-mobile="' + item.key + '"><span class="icon">' + item.def.icon + '</span><span class="label">' + item.def.label + '</span></div>';
+    }
+  }
+  html += '<div class="mobile-nav-item" onclick="doLogout()" data-mobile="logout"><span class="icon">\uD83D\uDEAA</span><span class="label">退出</span></div>';
+  document.getElementById('mobileNav').innerHTML = html;
 }
 
 function setActiveNav(page) {
@@ -415,6 +453,10 @@ function setActiveNav(page) {
   for (var i=0; i<items.length; i++) items[i].classList.remove('active');
   var el = document.querySelector('[data-page="' + page + '"]');
   if (el) el.classList.add('active');
+  var mobileItems = document.querySelectorAll('.mobile-nav-item');
+  for (var j=0; j<mobileItems.length; j++) mobileItems[j].classList.remove('active');
+  var mobileEl = document.querySelector('[data-mobile="' + page + '"]');
+  if (mobileEl) mobileEl.classList.add('active');
 }
 
 // ============ 仪表盘 ============
