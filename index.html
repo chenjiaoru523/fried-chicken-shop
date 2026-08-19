@@ -847,6 +847,7 @@ function closeModal() {
 // ============ 保存数据 ============
 async function saveModalData() {
   if (!editingTable) return;
+  if (!sb) { showToast('数据库连接失败，请刷新页面重试', 'error'); return; }
   var def = TABLES[editingTable];
   var data = {};
   var hasError = false;
@@ -861,6 +862,44 @@ async function saveModalData() {
     else if (f.type === 'boolean') data[f.key] = val === 'true';
     else data[f.key] = val;
   }
+  if (hasError) return;
+  // 自动计算
+  if (editingTable === 'purchase' && data.quantity != null && data.unit_price != null) data.total_price = data.quantity * data.unit_price;
+  if (editingTable === 'inventory_check' && data.actual_quantity != null && data.book_quantity != null) data.difference = data.actual_quantity - data.book_quantity;
+  if (editingTable === 'delivery_platform' && data.revenue != null && data.commission_rate != null) {
+    data.commission_amount = data.revenue * data.commission_rate / 100;
+    data.net_income = data.revenue - (data.commission_amount || 0) + (data.subsidy || 0);
+  }
+  if (editingTable === 'shift_handover' && data.remaining_quantity != null && data.alert_quantity != null) {
+    data.need_restock = data.remaining_quantity <= data.alert_quantity;
+    if (data.need_restock) data.restock_suggestion = '需补货' + (data.alert_quantity - data.remaining_quantity + 5) + (data.unit || '');
+  }
+  var btn = document.getElementById('modalSaveBtn');
+  btn.disabled = true; btn.textContent = '保存中...';
+  try {
+    var res;
+    if (editingId) {
+      res = await sb.from(def.table).update(data).eq('id', editingId);
+    } else {
+      res = await sb.from(def.table).insert(data);
+    }
+    if (!res) throw new Error('网络连接失败，请检查网络或Supabase配置');
+    if (res.error) throw res.error;
+    showToast('保存成功', 'success');
+    closeModal();
+    loadTableData(editingTable);
+    loadDashboardData();
+  } catch(err) {
+    console.error('Save error:', err);
+    var msg = err.message || '未知错误';
+    if (msg.includes('timeout') || msg.includes('aborted')) msg = '网络超时，请检查网络连接';
+    if (msg.includes('row-level')) msg = '数据库权限不足，请检查Supabase RLS设置';
+    if (msg.includes('JWT')) msg = '登录令牌失效，请重新登录';
+    if (msg.includes('violates')) msg = '数据格式不符合要求';
+    showToast('保存失败: ' + msg, 'error');
+    btn.disabled = false; btn.textContent = '保存';
+  }
+}
   if (hasError) return;
   // 自动计算
   if (editingTable === 'purchase' && data.quantity != null && data.unit_price != null) data.total_price = data.quantity * data.unit_price;
