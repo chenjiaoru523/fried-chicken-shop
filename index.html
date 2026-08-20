@@ -111,13 +111,13 @@ tbody tr:hover{background:#fafafa}
 .form-group textarea{resize:vertical;min-height:60px}
 .form-group .required-mark{color:var(--danger);margin-left:2px}
 .modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border)}
-#toast{position:fixed;top:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
-.toast-item{background:#333;color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.3);animation:slideIn .3s ease;display:flex;align-items:center;gap:8px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:2000;display:flex;flex-direction:column;gap:8px;max-width:90vw}
+.toast-item{background:#333;color:#fff;padding:12px 20px;border-radius:8px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.3);animation:slideUp .3s ease;display:flex;align-items:center;gap:8px}
 .toast-item.success{background:var(--success)}
 .toast-item.error{background:var(--danger)}
 .toast-item.warning{background:var(--warning)}
 .toast-item.info{background:var(--info)}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
 .config-banner{background:#fff3e0;border:1px solid var(--warning);border-radius:8px;padding:16px;margin-bottom:20px}
 .config-banner h3{color:var(--warning);font-size:15px;margin-bottom:8px}
 .config-banner p{font-size:13px;color:var(--text-light);line-height:1.8}
@@ -284,7 +284,7 @@ const TABLES = {
   material: { label:'物料', icon:'\uD83D\uDCE6', group:'基础数据', table:'material', fields:[
     {key:'material_id',label:'物料编号',type:'text',required:true},
     {key:'name',label:'名称',type:'text',required:true},
-    {key:'category',label:'分类',type:'select',options:['肉类','面食类','油料类','调料类','饮品类','包装类','蔬菜类','其他']},
+    {key:'category',label:'分类',type:'select',options:['肉类','面食类','小吃类','油料类','调料类','饮品类','包装类','蔬菜类','其他']},
     {key:'unit',label:'单位',type:'select',options:['kg','斤','个','包','瓶','箱','L','份']},
     {key:'price',label:'单价(元)',type:'number'},
     {key:'alert_quantity',label:'库存预警值',type:'number'},
@@ -1065,10 +1065,19 @@ function showTable(tableKey) {
   var canAdd = perm.canAdd === true || (Array.isArray(perm.canAdd) && perm.canAdd.indexOf(tableKey) >= 0);
   var canEdit = perm.canEdit === true || (Array.isArray(perm.canEdit) && perm.canEdit.indexOf(tableKey) >= 0);
   var canDelete = perm.canDelete === true || (Array.isArray(perm.canDelete) && perm.canDelete.indexOf(tableKey) >= 0);
+  var filterTables = ['material','purchase','return','inventory_check'];
+  var filterHtml = '';
+  if (filterTables.indexOf(tableKey) >= 0) {
+    filterHtml = '<select id="filterCategory" onchange="filterTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff"><option value="">全部分类</option></select>';
+    if (tableKey !== 'inventory_check') {
+      filterHtml += '<select id="filterSupplier" onchange="filterTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:13px;background:#fff"><option value="">全部供应商</option></select>';
+    }
+  }
   var html = '<div class="page-header"><h2>' + def.icon + ' ' + def.label + '</h2>' +
     '<span class="sync-indicator"><span class="sync-dot"></span>云端同步</span></div>' +
     '<div class="toolbar"><div class="search-box">' +
     '<input type="text" id="searchInput" placeholder="搜索..." oninput="filterTable()"></div>' +
+    (filterHtml ? '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' + filterHtml + '</div>' : '') +
     '<div>' + (canAdd ? '<button class="btn btn-primary" onclick="openAddModal(\'' + tableKey + '\')">+ 新增</button>' : '') +
     '</div></div>' +
     '<div class="table-wrap"><table id="dataTable"><thead><tr></tr></thead><tbody id="tableBody">' +
@@ -1098,6 +1107,7 @@ async function loadTableData(tableKey) {
     if (res.error) throw res.error;
     tableData[tableKey] = res.data;
     renderTableRows(tableKey, res.data);
+    populateFilters(tableKey);
   } catch(err) {
     document.getElementById('tableBody').innerHTML = '<tr class="empty-row"><td>加载失败:' + escapeHtml(err.message) + '</td></tr>';
   }
@@ -1112,8 +1122,26 @@ function renderTableRows(tableKey, results) {
   var visibleFields = def.fields.filter(function(f) { return hiddenFields.indexOf(f.key) < 0; });
   var searchTerm = (document.getElementById('searchInput') || {}).value || '';
   var filtered = results;
+  var filterCat = document.getElementById('filterCategory');
+  var filterSup = document.getElementById('filterSupplier');
+  var catValue = filterCat ? filterCat.value : '';
+  var supValue = filterSup ? filterSup.value : '';
+  if (catValue || supValue) {
+    filtered = filtered.filter(function(row) {
+      var cat = row.category || '';
+      var sup = row.supplier_id || '';
+      if ((!cat || !sup) && row.material_id) {
+        var info = getMaterialInfo(row.material_id);
+        if (!cat) cat = info.category || '';
+        if (!sup) sup = info.supplier_id || '';
+      }
+      if (catValue && cat !== catValue) return false;
+      if (supValue && String(sup) !== String(supValue)) return false;
+      return true;
+    });
+  }
   if (searchTerm) {
-    filtered = results.filter(function(row) {
+    filtered = filtered.filter(function(row) {
       for (var i=0; i<visibleFields.length; i++) {
         var val = getDisplayValue(row, visibleFields[i]);
         if (val && String(val).indexOf(searchTerm) >= 0) return true;
@@ -1144,6 +1172,66 @@ function renderTableRows(tableKey, results) {
 
 function filterTable() {
   if (currentTable && tableData[currentTable]) renderTableRows(currentTable, tableData[currentTable]);
+}
+
+function getMaterialInfo(materialId) {
+  var materials = tableData.material || [];
+  for (var i=0; i<materials.length; i++) {
+    if (String(materials[i].id) === String(materialId)) {
+      return { category: materials[i].category || '', supplier_id: materials[i].supplier_id || '' };
+    }
+  }
+  return { category: '', supplier_id: '' };
+}
+
+function populateFilters(tableKey) {
+  var filterCat = document.getElementById('filterCategory');
+  var filterSup = document.getElementById('filterSupplier');
+  if (!filterCat && !filterSup) return;
+  var categories = {};
+  var suppliers = {};
+  var data = tableData[tableKey] || [];
+  for (var i=0; i<data.length; i++) {
+    var row = data[i];
+    var cat = row.category || '';
+    var sup = row.supplier_id || '';
+    if ((!cat || !sup) && row.material_id) {
+      var info = getMaterialInfo(row.material_id);
+      if (!cat) cat = info.category;
+      if (!sup) sup = info.supplier_id;
+    }
+    if (cat) categories[cat] = true;
+    if (sup) suppliers[sup] = true;
+  }
+  if (filterCat) {
+    var currentCat = filterCat.value;
+    var html = '<option value="">全部分类</option>';
+    var sortedCats = Object.keys(categories).sort();
+    for (var i=0; i<sortedCats.length; i++) {
+      html += '<option value="' + escapeHtml(sortedCats[i]) + '">' + escapeHtml(sortedCats[i]) + '</option>';
+    }
+    filterCat.innerHTML = html;
+    filterCat.value = currentCat;
+  }
+  if (filterSup) {
+    var currentSup = filterSup.value;
+    var html = '<option value="">全部供应商</option>';
+    var supplierCache = refCache.supplier || [];
+    var supplierNames = {};
+    for (var i=0; i<supplierCache.length; i++) {
+      if (suppliers[supplierCache[i].id]) {
+        supplierNames[supplierCache[i].id] = supplierCache[i].name || supplierCache[i].id;
+      }
+    }
+    var sortedSup = Object.keys(supplierNames).sort(function(a,b) {
+      return String(supplierNames[a]).localeCompare(String(supplierNames[b]));
+    });
+    for (var i=0; i<sortedSup.length; i++) {
+      html += '<option value="' + escapeHtml(sortedSup[i]) + '">' + escapeHtml(supplierNames[sortedSup[i]]) + '</option>';
+    }
+    filterSup.innerHTML = html;
+    filterSup.value = currentSup;
+  }
 }
 
 function getDisplayValue(row, field) {
@@ -1599,11 +1687,6 @@ function subscribeTable(tableKey) {
 function onLiveDataChange(tableKey, eventType) {
   if (currentTable === tableKey) loadTableData(tableKey);
   loadDashboardData();
-  var def = TABLES[tableKey];
-  if (def) {
-    var actionText = eventType === 'INSERT' ? '新增' : (eventType === 'UPDATE' ? '更新' : '删除');
-    showToast(def.label + '有数据' + actionText, 'info');
-  }
 }
 
 // ============ 数据导出 ============
@@ -1708,7 +1791,7 @@ function showToast(msg, type) {
   toast.innerHTML = '<span>' + icon + '</span><span>' + escapeHtml(msg) + '</span>';
   document.getElementById('toast').appendChild(toast);
   setTimeout(function() {
-    toast.style.animation = 'slideIn .3s ease reverse';
+    toast.style.animation = 'slideUp .3s ease reverse';
     setTimeout(function() { toast.remove(); }, 300);
   }, 3000);
 }
