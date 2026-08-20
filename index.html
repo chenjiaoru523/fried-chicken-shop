@@ -1217,7 +1217,7 @@ function openEditModal(tableKey, rowId) {
   document.getElementById('modalTitle').textContent = '编辑' + def.label;
   var row = null;
   var list = tableData[tableKey] || [];
-  for (var i=0; i<list.length; i++) { if (list[i].id === rowId) { row = list[i]; break; } }
+  for (var i=0; i<list.length; i++) { if (String(list[i].id) === String(rowId)) { row = list[i]; break; } }
   renderForm(tableKey, row);
   document.getElementById('modalOverlay').classList.add('active');
 }
