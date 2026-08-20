@@ -568,8 +568,8 @@ function buildMobileNav() {
   // 根据权限判断可见分类
   var perm = PERMISSIONS[currentUser.role];
   var hasArchive = ['supplier','material','employee'].some(function(k){return perm.hidden.indexOf(k)<0});
-  var hasBusiness = ['purchase','return','inventory_check','shift_handover','delivery_platform'].some(function(k){return perm.hidden.indexOf(k)<0});
-  var hasAttendance = ['attendance','leave','salary'].some(function(k){return perm.hidden.indexOf(k)<0});
+  var hasBusiness = ['purchase','return','inventory_check'].some(function(k){return perm.hidden.indexOf(k)<0});
+  var hasAttendance = ['shift_handover','attendance','leave'].some(function(k){return perm.hidden.indexOf(k)<0});
   if (hasArchive) html += '<div class="mobile-nav-item" onclick="showCategoryPage(\'基础数据\')" data-mobile="cat-基础数据"><span class="icon">\uD83D\uDCC1</span><span class="label">档案</span></div>';
   if (hasBusiness) html += '<div class="mobile-nav-item" onclick="showCategoryPage(\'库存管理\')" data-mobile="cat-库存管理"><span class="icon">\uD83D\uDCCB</span><span class="label">业务</span></div>';
   if (hasAttendance) html += '<div class="mobile-nav-item" onclick="showCategoryPage(\'日常运营\')" data-mobile="cat-日常运营"><span class="icon">\u23F0</span><span class="label">考勤</span></div>';
@@ -691,21 +691,6 @@ async function loadDashboardData() {
     } catch(e) {
       counts[tablesToQuery[i]] = 0;
       tableData[tablesToQuery[i]] = [];
-    }
-  }
-  // 为综合收支加载进货数据和日常支出数据
-  if (currentUser.role === 'admin') {
-    if (!tableData['purchase']) {
-      try {
-        var pRes = await sb.from('purchase').select('*').limit(1000);
-        if (!pRes.error) tableData['purchase'] = pRes.data;
-      } catch(e) { tableData['purchase'] = []; }
-    }
-    if (!tableData['daily_expense']) {
-      try {
-        var eRes = await sb.from('daily_expense').select('*').limit(1000);
-        if (!eRes.error) tableData['daily_expense'] = eRes.data;
-      } catch(e) { tableData['daily_expense'] = []; }
     }
   }
   renderDashboard(counts);
@@ -1245,7 +1230,7 @@ function renderForm(tableKey, row) {
   
   // 外卖平台：按平台分组渲染
   if (tableKey === 'delivery_platform') {
-    html = renderDeliveryForm(row);
+    html = renderDeliveryForm(row, hiddenFields);
     document.getElementById('modalBody').innerHTML = html;
     return;
   }
@@ -1288,7 +1273,8 @@ function renderForm(tableKey, row) {
   if (refFields.length > 0) loadRefOptions(refFields);
 }
 
-function renderDeliveryForm(row) {
+function renderDeliveryForm(row, hiddenFields) {
+  hiddenFields = hiddenFields || [];
   var platforms = [
     {key:'meituan', label:'美团', color:'#FFD100'},
     {key:'taobao', label:'淘宝闪购', color:'#FF5000'},
@@ -1299,28 +1285,51 @@ function renderDeliveryForm(row) {
   
   for (var i=0; i<platforms.length; i++) {
     var p = platforms[i];
+    var pHidden = hiddenFields.indexOf(p.key + '_orders') >= 0 && hiddenFields.indexOf(p.key + '_revenue') >= 0;
+    if (pHidden) continue;
     html += '<div class="platform-section" style="border-left:4px solid ' + p.color + ';padding-left:12px;margin:16px 0;">';
     html += '<h4 style="color:' + p.color + ';margin-bottom:10px;font-size:15px;">' + p.label + '</h4>';
     html += '<div class="form-grid">';
-    html += '<div class="form-group"><label>总单量</label><input type="number" id="field_' + p.key + '_orders" value="' + escapeAttr(row ? (row[p.key + '_orders'] || '') : '') + '" placeholder="请输入单量"></div>';
-    html += '<div class="form-group"><label>营业额(元)</label><input type="number" id="field_' + p.key + '_revenue" value="' + escapeAttr(row ? (row[p.key + '_revenue'] || '') : '') + '" placeholder="请输入营业额"></div>';
-    html += '<div class="form-group"><label>到账实收(元)</label><input type="number" id="field_' + p.key + '_actual" value="' + escapeAttr(row ? (row[p.key + '_actual'] || '') : '') + '" placeholder="请输入到账实收"></div>';
-    html += '<div class="form-group"><label>推广费(元)</label><input type="number" id="field_' + p.key + '_promo" value="' + escapeAttr(row ? (row[p.key + '_promo'] || '') : '') + '" placeholder="请输入推广费"></div>';
-    html += '<div class="form-group"><label>刷单费(元)</label><input type="number" id="field_' + p.key + '_brush" value="' + escapeAttr(row ? (row[p.key + '_brush'] || '') : '') + '" placeholder="请输入刷单费"></div>';
+    var pFields = [
+      {suf:'orders', label:'总单量', ph:'请输入单量'},
+      {suf:'revenue', label:'营业额(元)', ph:'请输入营业额'},
+      {suf:'actual', label:'到账实收(元)', ph:'请输入到账实收'},
+      {suf:'promo', label:'推广费(元)', ph:'请输入推广费'},
+      {suf:'brush', label:'刷单费(元)', ph:'请输入刷单费'}
+    ];
+    for (var j=0; j<pFields.length; j++) {
+      var pf = pFields[j];
+      var fKey = p.key + '_' + pf.suf;
+      if (hiddenFields.indexOf(fKey) >= 0) continue;
+      html += '<div class="form-group"><label>' + pf.label + '</label><input type="number" id="field_' + fKey + '" value="' + escapeAttr(row ? (row[fKey] || '') : '') + '" placeholder="' + pf.ph + '"></div>';
+    }
     html += '</div></div>';
   }
   
-  // 合计区域（只读）
-  html += '<div class="platform-section" style="border-left:4px solid #333;padding-left:12px;margin:16px 0;background:#f9f9f9;">';
-  html += '<h4 style="color:#333;margin-bottom:10px;font-size:15px;">合计（自动计算）</h4>';
-  html += '<div class="form-grid">';
-  html += '<div class="form-group"><label>总单量</label><input type="number" id="field_total_orders" value="' + escapeAttr(row ? (row.total_orders || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
-  html += '<div class="form-group"><label>总营业额(元)</label><input type="number" id="field_total_revenue" value="' + escapeAttr(row ? (row.total_revenue || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
-  html += '<div class="form-group"><label>到账实收合计(元)</label><input type="number" id="field_total_actual" value="' + escapeAttr(row ? (row.total_actual || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
-  html += '<div class="form-group"><label>推广费合计(元)</label><input type="number" id="field_total_promo" value="' + escapeAttr(row ? (row.total_promo || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
-  html += '<div class="form-group"><label>刷单费合计(元)</label><input type="number" id="field_total_brush" value="' + escapeAttr(row ? (row.total_brush || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
-  html += '<div class="form-group"><label>实际净收入(元)</label><input type="number" id="field_net_income" value="' + escapeAttr(row ? (row.net_income || '') : '') + '" readOnly style="background:#e8f5e9;cursor:not-allowed;font-weight:600"></div>';
-  html += '</div></div>';
+  // 合计区域（只读）- 字段级权限控制
+  var showTotal = !platforms.every(function(p){return hiddenFields.indexOf(p.key+'_orders')>=0;});
+  if (showTotal) {
+    html += '<div class="platform-section" style="border-left:4px solid #333;padding-left:12px;margin:16px 0;background:#f9f9f9;">';
+    html += '<h4 style="color:#333;margin-bottom:10px;font-size:15px;">合计（自动计算）</h4>';
+    html += '<div class="form-grid">';
+    var totalFields = [
+      {key:'total_orders', label:'总单量'},
+      {key:'total_revenue', label:'总营业额(元)'},
+      {key:'total_actual', label:'到账实收合计(元)'},
+      {key:'total_promo', label:'推广费合计(元)'},
+      {key:'total_brush', label:'刷单费合计(元)'},
+      {key:'net_income', label:'实际净收入(元)'}
+    ];
+    for (var j=0; j<totalFields.length; j++) {
+      var tf = totalFields[j];
+      if (hiddenFields.indexOf(tf.key) >= 0) continue;
+      var isNet = tf.key === 'net_income';
+      var bg = isNet ? '#e8f5e9' : '#f5f5f5';
+      var fw = isNet ? 'font-weight:600' : '';
+      html += '<div class="form-group"><label>' + tf.label + '</label><input type="number" id="field_' + tf.key + '" value="' + escapeAttr(row ? (row[tf.key] || '') : '') + '" readOnly style="background:' + bg + ';cursor:not-allowed;' + fw + '"></div>';
+    }
+    html += '</div></div>';
+  }
   
   html += '<div class="form-group full"><label>备注</label><textarea id="field_remark" placeholder="请输入备注">' + escapeHtml(row ? (row.remark || '') : '') + '</textarea></div>';
   html += '</div>';
@@ -1381,21 +1390,24 @@ async function saveModalData() {
   if (!editingTable) return;
   if (!sb) { showToast('数据库连接失败，请刷新页面重试', 'error'); return; }
   var def = TABLES[editingTable];
+  var perm = PERMISSIONS[currentUser.role];
+  var hiddenFields = (perm.hiddenFields && perm.hiddenFields[editingTable]) || [];
   var data = {};
   var hasError = false;
+  var btn = document.getElementById('modalSaveBtn');
   for (var i=0; i<def.fields.length; i++) {
     var f = def.fields[i];
     if (f.readonly) continue;
+    if (hiddenFields.indexOf(f.key) >= 0) continue;
     var el = document.getElementById('field_' + f.key);
-    if (!el) continue;
+    if (!el) { if (f.required) { showToast('表单渲染异常：缺少' + f.label, 'error'); if(btn){btn.disabled=false;btn.textContent='保存';} return; } continue; }
     var val = el.value.trim();
-    if (f.required && !val) { showToast(f.label + '为必填项', 'error'); hasError = true; break; }
-    if (!val) continue;
-    if (f.type === 'number') data[f.key] = parseFloat(val) || 0;
+    if (f.required && !val) { showToast(f.label + '不能为空', 'error'); hasError = true; break; }
+    if (f.type === 'number') data[f.key] = val === '' ? 0 : (parseFloat(val) || 0);
     else if (f.type === 'boolean') data[f.key] = val === 'true';
     else data[f.key] = val;
   }
-  if (hasError) return;
+  if (hasError) { if(btn){btn.disabled=false;btn.textContent='保存';} return; }
   // 盘点自动带出账面数量
   if (editingTable === 'inventory_check' && data.material_id) {
     var matList = tableData['material'] || [];
@@ -1428,10 +1440,6 @@ async function saveModalData() {
   }
   if (editingTable === 'purchase' && data.quantity != null && data.unit_price != null) data.total_price = data.quantity * data.unit_price;
   if (editingTable === 'inventory_check' && data.actual_quantity != null && data.book_quantity != null) data.difference = data.actual_quantity - data.book_quantity;
-  if (editingTable === 'delivery_platform' && data.revenue != null && data.commission_rate != null) {
-    data.commission_amount = data.revenue * data.commission_rate / 100;
-    data.net_income = data.revenue - (data.commission_amount || 0) + (data.subsidy || 0);
-  }
   if (editingTable === 'shift_handover' && data.remaining_quantity != null && data.material_id) {
     var shMatList = tableData['material'] || [];
     var shMat = null;
