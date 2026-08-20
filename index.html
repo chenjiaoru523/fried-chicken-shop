@@ -23,6 +23,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Micr
 .login-error{color:var(--danger);font-size:13px;text-align:center;margin-top:12px;min-height:20px}
 .login-hint{text-align:center;margin-top:16px;font-size:12px;color:var(--text-light)}
 .login-hint a{color:var(--primary);text-decoration:none}
+.login-logo{text-align:center;margin-bottom:28px}
+.login-logo .logo-icon{font-size:48px;margin-bottom:8px}
+.login-title{font-size:22px;color:var(--primary);margin-bottom:4px}
+.login-subtitle{font-size:13px;color:var(--text-light)}
+.user-card-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px}
+.user-card{background:#fff;border:2px solid var(--border);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .2s}
+.user-card:hover{border-color:var(--primary);background:rgba(230,81,0,.04);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.user-avatar{font-size:36px;margin-bottom:8px}
+.user-card-name{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+.user-card-role{display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:500}
+.role-admin{background:#e3f2fd;color:#1565c0}
+.role-employee{background:#e8f5e9;color:#2e7d32}
+.password-header{text-align:center;margin-bottom:20px}
+.selected-avatar{font-size:48px;margin-bottom:4px}
+.selected-name{font-size:16px;font-weight:600;color:var(--text)}
+.back-btn{display:block;width:100%;padding:10px;margin-top:12px;background:transparent;color:var(--text-light);border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer;transition:all .2s}
+.back-btn:hover{background:#f5f5f5;color:var(--text)}
 #mainPage{display:flex;min-height:100vh}
 #sidebar{width:220px;background:var(--sidebar-bg);color:var(--sidebar-text);position:fixed;height:100vh;overflow-y:auto;z-index:100;transition:transform .3s}
 #sidebar .logo{padding:20px 18px;font-size:17px;font-weight:700;color:#fff;border-bottom:1px solid rgba(255,255,255,.1)}
@@ -139,27 +156,51 @@ tbody tr:hover{background:#fafafa}
 .stat-card .stat-sub{font-size:11px}
 .chart-card canvas{max-height:180px}
 }
+.view-tabs{display:flex;gap:8px;margin-bottom:12px}
+.view-tab{padding:6px 14px;border-radius:6px;background:#f5f5f5;cursor:pointer;font-size:13px}
+.view-tab.active{background:var(--primary);color:#fff}
+.monthly-balance-table{width:100%;border-collapse:collapse;font-size:13px}
+.monthly-balance-table th,.monthly-balance-table td{padding:8px 12px;border:1px solid var(--border);text-align:right}
+.monthly-balance-table th{background:#f5f5f5;text-align:center}
+.monthly-balance-table .income{color:var(--success);font-weight:600}
+.monthly-balance-table .expense{color:var(--danger);font-weight:600}
+.monthly-balance-table .net{color:var(--primary);font-weight:600}
 </style>
 </head>
 <body>
 
 <div id="loginPage">
-<div class="login-card">
-<h1>炸鸡店门店管理系统</h1>
-<p class="subtitle">云端同步版 - 多人实时协作</p>
-<div class="input-group">
-<label>用户名</label>
-<input type="text" id="loginUser" placeholder="请输入用户名" autocomplete="off">
+<div class="login-card" id="loginCard">
+<div class="login-logo">
+<div class="logo-icon">🍗</div>
+<div class="login-title">炸鸡店门店管理系统</div>
+<div class="login-subtitle">选择您的账号登录</div>
 </div>
-<div class="input-group">
-<label>密码</label>
-<input type="password" id="loginPass" placeholder="请输入密码" autocomplete="off">
+<div class="user-card-grid" id="userCards">
+<div class="user-card" onclick="selectUser('xuchen')">
+<div class="user-avatar">👨‍💼</div>
+<div class="user-card-name">徐晨</div>
+<span class="user-card-role role-admin">大老板 / 管理员</span>
 </div>
-<button class="login-btn" onclick="doLogin()">登 录</button>
+<div class="user-card" onclick="selectUser('chenjiaoru')">
+<div class="user-avatar">👩‍💼</div>
+<div class="user-card-name">陈皎茹</div>
+<span class="user-card-role role-admin">二老板 / 管理员</span>
+</div>
+<div class="user-card" onclick="selectUser('wuxinya')">
+<div class="user-avatar">👩‍🍳</div>
+<div class="user-card-name">巫芯雅</div>
+<span class="user-card-role role-employee">员工</span>
+</div>
+<div class="user-card" onclick="selectUser('zhaojianxiang')">
+<div class="user-avatar">👨‍🍳</div>
+<div class="user-card-name">赵建翔</div>
+<span class="user-card-role role-employee">员工</span>
+</div>
+</div>
 <div class="login-error" id="loginError"></div>
-<div class="login-hint">
-<p>账号:徐晨/陈皎茹(管理员) | 巫芯雅/赵建翔(员工)</p>
-<p style="margin-top:4px">首次使用需配置Supabase,详见配置指南</p>
+<div class="login-hint" id="loginHint">
+<p>首次使用需配置Supabase,详见配置指南</p>
 </div>
 </div>
 </div>
@@ -210,15 +251,24 @@ const SUPABASE_CONFIG = {
 };
 
 const USERS = {
-  xuchen:       { password: 'xc888',  name: '徐晨',   role: 'admin' },
-  chenjiaoru:   { password: 'cjr888', name: '陈皎茹', role: 'admin' },
-  wuxinya:      { password: 'wxy0320', name: '巫芯雅', role: 'employee' },
-  zhaojianxiang:{ password: 'zjx666', name: '赵建翔', role: 'employee' }
+  xuchen:       { password: 'xc888',   name: '徐晨',   role: 'admin',    avatar: '\uD83D\uDC68\u200D\uD83D\uDCBC' },
+  chenjiaoru:   { password: 'cjr888',  name: '陈皎茹', role: 'admin',    avatar: '\uD83D\uDC69\u200D\uD83D\uDCBC' },
+  wuxinya:      { password: 'wxy0320', name: '巫芯雅', role: 'employee', avatar: '\uD83D\uDC69\u200D\uD83C\uDF73' },
+  zhaojianxiang:{ password: 'zjx666',  name: '赵建翔', role: 'employee', avatar: '\uD83D\uDC68\u200D\uD83C\uDF73' }
 };
 
 const PERMISSIONS = {
-  admin: { hidden: [], canAdd: true, canEdit: true, canDelete: true },
-  employee: { hidden: ['salary'], canAdd: ['supplier','material','purchase','return','shift_handover','attendance','leave','inventory_check'], canEdit: ['supplier','material','purchase','return','shift_handover','attendance','leave','inventory_check'], canDelete: ['supplier','material','purchase','return'] }
+  admin: { hidden: [], hiddenFields: {}, canAdd: true, canEdit: true, canDelete: true },
+  employee: {
+    hidden: ['salary', 'delivery_platform', 'daily_expense'],
+    hiddenFields: {
+      'leave': ['approval_status'],
+      'shift_handover': ['daily_revenue']
+    },
+    canAdd: ['supplier','material','purchase','return','shift_handover','attendance','leave','inventory_check'],
+    canEdit: ['supplier','material','purchase','return','shift_handover','attendance','leave','inventory_check'],
+    canDelete: ['supplier','material','purchase','return']
+  }
 };
 
 const TABLES = {
@@ -316,13 +366,31 @@ const TABLES = {
   ]},
   delivery_platform: { label:'外卖平台', icon:'\uD83D\uDEB5', group:'财务管理', table:'delivery_platform', fields:[
     {key:'date',label:'日期',type:'date',required:true},
-    {key:'platform_name',label:'平台名称',type:'select',options:['美团','饿了么','抖音','小程序','其他'],required:true},
-    {key:'order_count',label:'订单数',type:'number'},
-    {key:'revenue',label:'营业额(元)',type:'number'},
-    {key:'commission_rate',label:'佣金比例(%)',type:'number'},
-    {key:'commission_amount',label:'佣金金额(元)',type:'number'},
-    {key:'subsidy',label:'满减补贴(元)',type:'number'},
-    {key:'net_income',label:'净收入(元)',type:'number'},
+    // 美团
+    {key:'meituan_orders',label:'美团-总单量',type:'number'},
+    {key:'meituan_revenue',label:'美团-营业额(元)',type:'number'},
+    {key:'meituan_actual',label:'美团-到账实收(元)',type:'number'},
+    {key:'meituan_promo',label:'美团-推广费(元)',type:'number'},
+    {key:'meituan_brush',label:'美团-刷单费(元)',type:'number'},
+    // 淘宝闪购
+    {key:'taobao_orders',label:'淘宝闪购-总单量',type:'number'},
+    {key:'taobao_revenue',label:'淘宝闪购-营业额(元)',type:'number'},
+    {key:'taobao_actual',label:'淘宝闪购-到账实收(元)',type:'number'},
+    {key:'taobao_promo',label:'淘宝闪购-推广费(元)',type:'number'},
+    {key:'taobao_brush',label:'淘宝闪购-刷单费(元)',type:'number'},
+    // 京东
+    {key:'jingdong_orders',label:'京东-总单量',type:'number'},
+    {key:'jingdong_revenue',label:'京东-营业额(元)',type:'number'},
+    {key:'jingdong_actual',label:'京东-到账实收(元)',type:'number'},
+    {key:'jingdong_promo',label:'京东-推广费(元)',type:'number'},
+    {key:'jingdong_brush',label:'京东-刷单费(元)',type:'number'},
+    // 合计（系统自动计算，只读）
+    {key:'total_orders',label:'合计-总单量',type:'number',readonly:true},
+    {key:'total_revenue',label:'合计-总营业额(元)',type:'number',readonly:true},
+    {key:'total_actual',label:'合计-到账实收(元)',type:'number',readonly:true},
+    {key:'total_promo',label:'合计-推广费(元)',type:'number',readonly:true},
+    {key:'total_brush',label:'合计-刷单费(元)',type:'number',readonly:true},
+    {key:'net_income',label:'实际净收入(元)',type:'number',readonly:true},
     {key:'remark',label:'备注',type:'textarea'}
   ]},
   daily_expense: { label:'日常支出', icon:'\uD83D\uDCB8', group:'财务管理', table:'daily_expense', fields:[
@@ -363,27 +431,86 @@ function initApp() {
   }
 }
 
-// ============ 登录 ============
+// ============ 登录（两步模式） ============
+var selectedUsername = null;
+
+function selectUser(username) {
+  if (!USERS[username]) return;
+  selectedUsername = username;
+  var u = USERS[username];
+  var html = '<div class="password-header">' +
+    '<div class="selected-avatar">' + u.avatar + '</div>' +
+    '<div class="selected-name">' + u.name + '</div>' +
+    '</div>' +
+    '<div class="input-group">' +
+    '<label>密码</label>' +
+    '<input type="password" id="loginPass" placeholder="请输入密码" autocomplete="off">' +
+    '</div>' +
+    '<button class="login-btn" onclick="doLogin()">确认登录</button>' +
+    '<div class="login-error" id="loginError"></div>' +
+    '<button class="back-btn" onclick="showUserCards()">返回选账号</button>';
+  var card = document.getElementById('loginCard');
+  card.innerHTML = html;
+  setTimeout(function() { document.getElementById('loginPass').focus(); }, 50);
+}
+
+function showUserCards() {
+  selectedUsername = null;
+  var html = '<div class="login-logo">' +
+    '<div class="logo-icon">\uD83C\uDF57</div>' +
+    '<div class="login-title">炸鸡店门店管理系统</div>' +
+    '<div class="login-subtitle">选择您的账号登录</div>' +
+    '</div>' +
+    '<div class="user-card-grid">' +
+    '<div class="user-card" onclick="selectUser(\'xuchen\')">' +
+    '<div class="user-avatar">\uD83D\uDC68\u200D\uD83D\uDCBC</div>' +
+    '<div class="user-card-name">徐晨</div>' +
+    '<span class="user-card-role role-admin">大老板 / 管理员</span>' +
+    '</div>' +
+    '<div class="user-card" onclick="selectUser(\'chenjiaoru\')">' +
+    '<div class="user-avatar">\uD83D\uDC69\u200D\uD83D\uDCBC</div>' +
+    '<div class="user-card-name">陈皎茹</div>' +
+    '<span class="user-card-role role-admin">二老板 / 管理员</span>' +
+    '</div>' +
+    '<div class="user-card" onclick="selectUser(\'wuxinya\')">' +
+    '<div class="user-avatar">\uD83D\uDC69\u200D\uD83C\uDF73</div>' +
+    '<div class="user-card-name">巫芯雅</div>' +
+    '<span class="user-card-role role-employee">员工</span>' +
+    '</div>' +
+    '<div class="user-card" onclick="selectUser(\'zhaojianxiang\')">' +
+    '<div class="user-avatar">\uD83D\uDC68\u200D\uD83C\uDF73</div>' +
+    '<div class="user-card-name">赵建翔</div>' +
+    '<span class="user-card-role role-employee">员工</span>' +
+    '</div>' +
+    '</div>' +
+    '<div class="login-error" id="loginError"></div>' +
+    '<div class="login-hint" id="loginHint">' +
+    '<p>首次使用需配置Supabase,详见配置指南</p>' +
+    '</div>';
+  document.getElementById('loginCard').innerHTML = html;
+}
+
 function doLogin() {
-  var user = document.getElementById('loginUser').value.trim().toLowerCase();
   var pass = document.getElementById('loginPass').value.trim();
   var err = document.getElementById('loginError');
-  var username = user;
-  for (var key in USERS) {
-    if (USERS[key].name === user) { username = key; break; }
+  if (!selectedUsername || !USERS[selectedUsername]) {
+    err.textContent = '请先选择账号';
+    return;
   }
-  if (USERS[username] && USERS[username].password === pass) {
-    currentUser = { username: username, name: USERS[username].name, role: USERS[username].role };
+  var u = USERS[selectedUsername];
+  if (u.password === pass) {
+    currentUser = { username: selectedUsername, name: u.name, role: u.role };
     sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
     showMainPage();
   } else {
-    err.textContent = '用户名或密码错误';
+    err.textContent = '密码错误';
   }
 }
 
 function doLogout() {
   sessionStorage.removeItem('currentUser');
   currentUser = null;
+  selectedUsername = null;
   for (var key in channels) { try { channels[key].unsubscribe(); } catch(e){} }
   channels = {};
   showLoginPage();
@@ -392,6 +519,7 @@ function doLogout() {
 function showLoginPage() {
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('mainPage').style.display = 'none';
+  showUserCards();
 }
 
 function showMainPage() {
@@ -425,27 +553,85 @@ function buildNavMenu() {
     html += '</div>';
   }
   document.getElementById('navMenu').innerHTML = html;
+  // 管理员增加工具分组
+  if (currentUser.role === 'admin') {
+    var toolHtml = '<div class="nav-group"><div class="nav-group-title">工具</div>' +
+      '<div class="nav-item" onclick="showExportPage()" data-page="export"><span class="icon">\uD83D\uDCC4</span>数据导出</div>' +
+      '</div>';
+    document.getElementById('navMenu').innerHTML += toolHtml;
+  }
   buildMobileNav();
 }
 
 function buildMobileNav() {
-  var html = '<div class="mobile-nav-item active" onclick="showDashboard()" data-mobile="dashboard"><span class="icon">\uD83D\uDCCA</span><span class="label">仪表盘</span></div>';
-  var groups = {};
-  for (var key in TABLES) {
-    var t = TABLES[key];
-    if (!groups[t.group]) groups[t.group] = [];
-    groups[t.group].push({key:key, def:t});
-  }
+  var html = '<div class="mobile-nav-item active" onclick="showDashboard()" data-mobile="dashboard"><span class="icon">\uD83D\uDCCA</span><span class="label">首页</span></div>';
+  // 根据权限判断可见分类
   var perm = PERMISSIONS[currentUser.role];
-  for (var g in groups) {
-    for (var i=0; i<groups[g].length; i++) {
-      var item = groups[g][i];
-      if (perm.hidden.indexOf(item.key) >= 0) continue;
-      html += '<div class="mobile-nav-item" onclick="showTable(\'' + item.key + '\')" data-mobile="' + item.key + '"><span class="icon">' + item.def.icon + '</span><span class="label">' + item.def.label + '</span></div>';
-    }
-  }
-  html += '<div class="mobile-nav-item" onclick="doLogout()" data-mobile="logout"><span class="icon">\uD83D\uDEAA</span><span class="label">退出</span></div>';
+  var hasArchive = ['supplier','material','employee'].some(function(k){return perm.hidden.indexOf(k)<0});
+  var hasBusiness = ['purchase','return','inventory_check','shift_handover','delivery_platform'].some(function(k){return perm.hidden.indexOf(k)<0});
+  var hasAttendance = ['attendance','leave','salary'].some(function(k){return perm.hidden.indexOf(k)<0});
+  if (hasArchive) html += '<div class="mobile-nav-item" onclick="showCategoryPage(\'基础数据\')" data-mobile="cat-基础数据"><span class="icon">\uD83D\uDCC1</span><span class="label">档案</span></div>';
+  if (hasBusiness) html += '<div class="mobile-nav-item" onclick="showCategoryPage(\'库存管理\')" data-mobile="cat-库存管理"><span class="icon">\uD83D\uDCCB</span><span class="label">业务</span></div>';
+  if (hasAttendance) html += '<div class="mobile-nav-item" onclick="showCategoryPage(\'日常运营\')" data-mobile="cat-日常运营"><span class="icon">\u23F0</span><span class="label">考勤</span></div>';
+  html += '<div class="mobile-nav-item" onclick="showMorePage()" data-mobile="more"><span class="icon">\u2630</span><span class="label">更多</span></div>';
   document.getElementById('mobileNav').innerHTML = html;
+}
+
+function showCategoryPage() {
+  var groups = Array.prototype.slice.call(arguments);
+  setActiveNav('cat-' + groups.join('-'));
+  currentTable = null;
+  var perm = PERMISSIONS[currentUser.role];
+  var html = '<div class="page-header"><h2>\u2630 ' + groups.join(' / ') + '</h2>' +
+    '<span class="sync-indicator"><span class="sync-dot"></span>云端同步</span></div>';
+  for (var g=0; g<groups.length; g++) {
+    var groupName = groups[g];
+    html += '<div class="chart-card"><h3>' + groupName + '</h3><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-top:8px">';
+    for (var key in TABLES) {
+      var t = TABLES[key];
+      if (t.group !== groupName) continue;
+      if (perm.hidden.indexOf(key) >= 0) continue;
+      html += '<div onclick="showTable(\'' + key + '\')" style="background:#f5f5f5;border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:all .2s" onmouseover="this.style.background=\'#fff3e0\'" onmouseout="this.style.background=\'#f5f5f5\'">' +
+        '<div style="font-size:28px;margin-bottom:6px">' + t.icon + '</div>' +
+        '<div style="font-size:14px;font-weight:600">' + t.label + '</div></div>';
+    }
+    html += '</div></div>';
+  }
+  document.getElementById('viewContainer').innerHTML = html;
+}
+
+function showMorePage() {
+  setActiveNav('more');
+  currentTable = null;
+  var html = '<div class="page-header"><h2>\u2630 更多</h2>' +
+    '<span class="sync-indicator"><span class="sync-dot"></span>云端同步</span></div>';
+  // 管理员：财务管理入口
+  if (currentUser.role === 'admin') {
+    html += '<div class="chart-card"><h3>财务管理</h3>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-top:8px">';
+    var financeTables = ['salary','delivery_platform','daily_expense'];
+    for (var i=0; i<financeTables.length; i++) {
+      var key = financeTables[i];
+      if (TABLES[key]) {
+        var t = TABLES[key];
+        html += '<div onclick="showTable(\'' + key + '\')" style="background:#f5f5f5;border-radius:8px;padding:16px;text-align:center;cursor:pointer;transition:all .2s" onmouseover="this.style.background=\'#fff3e0\'" onmouseout="this.style.background=\'#f5f5f5\'">' +
+          '<div style="font-size:28px;margin-bottom:6px">' + t.icon + '</div>' +
+          '<div style="font-size:14px;font-weight:600">' + t.label + '</div></div>';
+      }
+    }
+    html += '</div></div>';
+  }
+  if (currentUser.role === 'admin') {
+    html += '<div class="chart-card" style="margin-top:16px"><h3>数据管理</h3>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">' +
+      '<div onclick="showExportPage()" style="background:#e3f2fd;border-radius:8px;padding:16px;text-align:center;cursor:pointer"><div style="font-size:28px;margin-bottom:6px">\uD83D\uDCC4</div><div style="font-size:14px;font-weight:600">数据导出</div></div>' +
+      '</div></div>';
+  }
+  html += '<div class="chart-card" style="margin-top:16px"><h3>账户</h3>' +
+    '<div style="padding:12px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><span>当前用户</span><span style="font-weight:600">' + currentUser.name + '</span></div>' +
+    '<div style="padding:12px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center"><span>角色</span><span style="font-weight:600">' + (currentUser.role === 'admin' ? '管理员' : '员工') + '</span></div>' +
+    '<div style="padding:12px 0;display:flex;justify-content:center"><button class="btn btn-danger" onclick="doLogout()">退出登录</button></div></div>';
+  document.getElementById('viewContainer').innerHTML = html;
 }
 
 function setActiveNav(page) {
@@ -467,11 +653,19 @@ function showDashboard() {
     '<span class="sync-indicator"><span class="sync-dot"></span>云端实时同步</span></div>' +
     '<div class="stat-cards" id="statCards"><div class="loading"><div class="loading-spinner"></div></div></div>';
   if (currentUser.role === 'admin') {
-    html += '<div class="chart-row"><div class="chart-card"><h3>库存预警</h3><canvas id="chartAlert"></canvas></div>' +
-      '<div class="chart-card"><h3>外卖平台收入占比</h3><canvas id="chartPlatform"></canvas></div></div>' +
-      '<div class="chart-row"><div class="chart-card"><h3>近7天营业额</h3><canvas id="chartRevenue"></canvas></div>' +
-      '<div class="chart-card"><h3>支出趋势</h3><canvas id="chartExpense"></canvas></div></div>';
+    html += '<div class="stat-cards" id="todayCards" style="margin-top:0"></div>';
+    html += '<div class="chart-row"><div class="chart-card"><h3>\u5E93\u5B58\u9884\u8B66</h3><canvas id="chartAlert"></canvas></div>' +
+      '<div class="chart-card"><h3>\u5916\u5356\u5E73\u53F0\u6536\u5165\u7EDF\u8BA1</h3>' +
+      '<div class="view-tabs">' +
+      '<span class="view-tab active" onclick="switchDeliveryView(\'week\',this)">\u8FD17\u5929</span>' +
+      '<span class="view-tab" onclick="switchDeliveryView(\'month\',this)">\u672C\u6708</span>' +
+      '<span class="view-tab" onclick="switchDeliveryView(\'year\',this)">\u672C\u5E74</span></div>' +
+      '<canvas id="chartDeliveryIncome"></canvas></div></div>' +
+      '<div class="chart-row"><div class="chart-card" style="grid-column:1/-1">' +
+      '<h3>\u7EFC\u5408\u6536\u652F\u6309\u6708\u6C47\u603B</h3>' +
+      '<div id="monthlyBalanceContainer"></div></div></div>';
   }
+  html += '<div id="todoContainer"></div>';
   document.getElementById('viewContainer').innerHTML = html;
   loadDashboardData();
 }
@@ -479,11 +673,9 @@ function showDashboard() {
 async function loadDashboardData() {
   if (!sb) return;
   var counts = {};
-  var tablesToQuery = ['supplier','material','employee'];
+  var tablesToQuery = ['supplier','material','employee','inventory_check','shift_handover','attendance'];
   if (currentUser.role === 'admin') {
-    tablesToQuery = tablesToQuery.concat(['purchase','return','salary','daily_expense','delivery_platform']);
-  } else {
-    tablesToQuery = tablesToQuery.concat(['shift_handover','attendance']);
+    tablesToQuery = tablesToQuery.concat(['purchase','return','salary','daily_expense','delivery_platform','leave']);
   }
   for (var i=0; i<tablesToQuery.length; i++) {
     try {
@@ -499,6 +691,21 @@ async function loadDashboardData() {
     } catch(e) {
       counts[tablesToQuery[i]] = 0;
       tableData[tablesToQuery[i]] = [];
+    }
+  }
+  // 为综合收支加载进货数据和日常支出数据
+  if (currentUser.role === 'admin') {
+    if (!tableData['purchase']) {
+      try {
+        var pRes = await sb.from('purchase').select('*').limit(1000);
+        if (!pRes.error) tableData['purchase'] = pRes.data;
+      } catch(e) { tableData['purchase'] = []; }
+    }
+    if (!tableData['daily_expense']) {
+      try {
+        var eRes = await sb.from('daily_expense').select('*').limit(1000);
+        if (!eRes.error) tableData['daily_expense'] = eRes.data;
+      } catch(e) { tableData['daily_expense'] = []; }
     }
   }
   renderDashboard(counts);
@@ -522,7 +729,7 @@ function renderDashboard(counts) {
     html += statCard('总支出', '\u00A5' + totalExpense.toFixed(2), '元', 'danger');
     var totalRevenue = 0;
     if (tableData.delivery_platform) {
-      for (var i=0; i<tableData.delivery_platform.length; i++) totalRevenue += (tableData.delivery_platform[i].revenue || 0);
+      for (var i=0; i<tableData.delivery_platform.length; i++) totalRevenue += (tableData.delivery_platform[i].total_revenue || 0);
     }
     html += statCard('总营业额', '\u00A5' + totalRevenue.toFixed(2), '元', 'success');
   } else {
@@ -530,7 +737,105 @@ function renderDashboard(counts) {
     html += statCard('打卡记录', counts.attendance || 0, '条', '');
   }
   document.getElementById('statCards').innerHTML = html;
-  if (currentUser.role === 'admin') renderCharts();
+  if (currentUser.role === 'admin') {
+    renderTodayCards();
+    renderCharts();
+    renderDeliveryStats();
+    renderMonthlyBalance();
+  }
+  renderTodoList();
+}
+
+function renderTodayCards() {
+  var container = document.getElementById('todayCards');
+  if (!container) return;
+  var today = new Date();
+  var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  var todayRevenue = 0;
+  var todayOrders = 0;
+  var todayActual = 0;
+  var todayPromo = 0;
+  var todayBrush = 0;
+  if (tableData.delivery_platform) {
+    for (var i=0; i<tableData.delivery_platform.length; i++) {
+      var d = tableData.delivery_platform[i];
+      if (d.date === todayStr || (d.date && d.date.slice(0,10) === todayStr)) {
+        todayRevenue += (d.total_revenue || 0);
+        todayOrders += (d.total_orders || 0);
+        todayActual += (d.total_actual || 0);
+        todayPromo += (d.total_promo || 0);
+        todayBrush += (d.total_brush || 0);
+      }
+    }
+  }
+  var html = '';
+  html += statCard('今日营业额', '\u00A5' + todayRevenue.toFixed(2), '元', 'success');
+  html += statCard('今日订单', todayOrders, '单', '');
+  html += statCard('今日到账', '\u00A5' + todayActual.toFixed(2), '元', '');
+  html += statCard('今日推广+刷单', '\u00A5' + (todayPromo + todayBrush).toFixed(2), '元', 'warning');
+  container.innerHTML = html;
+}
+
+function renderTodoList() {
+  var container = document.getElementById('todoContainer');
+  if (!container) return;
+  var today = new Date();
+  var todayStr = today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  var todos = [];
+  // 检查今日是否完成盘点
+  if (tableData.inventory_check) {
+    var hasTodayCheck = false;
+    for (var i=0; i<tableData.inventory_check.length; i++) {
+      if (tableData.inventory_check[i].date === todayStr) { hasTodayCheck = true; break; }
+    }
+    if (!hasTodayCheck) todos.push({text:'今日未完成每日盘点', action:'showTable', target:'inventory_check', icon:'\uD83D\uDCCB'});
+  }
+  // 检查今日是否完成交接班
+  if (tableData.shift_handover) {
+    var hasTodayShift = false;
+    for (var i=0; i<tableData.shift_handover.length; i++) {
+      if (tableData.shift_handover[i].date === todayStr) { hasTodayShift = true; break; }
+    }
+    if (!hasTodayShift) todos.push({text:'今日交接班登记未完成', action:'showTable', target:'shift_handover', icon:'\uD83D\uDD04'});
+  }
+  // 检查今日是否完成打卡
+  if (tableData.attendance) {
+    var hasTodayAttendance = false;
+    for (var i=0; i<tableData.attendance.length; i++) {
+      if (tableData.attendance[i].date === todayStr) { hasTodayAttendance = true; break; }
+    }
+    if (!hasTodayAttendance) todos.push({text:'今日未完成打卡', action:'showTable', target:'attendance', icon:'\u23F0'});
+  }
+  // 管理员：检查待审批请假
+  if (currentUser.role === 'admin' && tableData.leave) {
+    var pendingLeaves = 0;
+    for (var i=0; i<tableData.leave.length; i++) {
+      if (tableData.leave[i].approval_status === '\u5F85\u5BA1\u6279') pendingLeaves++;
+    }
+    if (pendingLeaves > 0) todos.push({text:'有' + pendingLeaves + '条请假申请待审批', action:'showTable', target:'leave', icon:'\uD83D\uDCC5'});
+  }
+  // 库存预警
+  if (tableData.material) {
+    var lowStockCount = 0;
+    for (var i=0; i<tableData.material.length; i++) {
+      var m = tableData.material[i];
+      if (m.alert_quantity > 0 && (m.stock_quantity || 0) <= m.alert_quantity) lowStockCount++;
+    }
+    if (lowStockCount > 0) todos.push({text: lowStockCount + '种物料库存低于预警值', action:'showTable', target:'material', icon:'\u26A0\uFE0F'});
+  }
+  if (todos.length === 0) {
+    container.innerHTML = '<div class="chart-card" style="margin-top:16px"><h3>\u2705 \u4ECA\u65E5\u5F85\u529E</h3><p style="color:var(--text-light);padding:12px 0">\u4ECA\u65E5\u6240\u6709\u4EFB\u52A1\u5DF2\u5B8C\u6210</p></div>';
+    return;
+  }
+  var html = '<div class="chart-card" style="margin-top:16px"><h3>\u23F0 \u4ECA\u65E5\u5F85\u529E</h3><div style="margin-top:8px">';
+  for (var i=0; i<todos.length; i++) {
+    var t = todos[i];
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">' +
+      '<span><span style="margin-right:8px">' + t.icon + '</span>' + t.text + '</span>' +
+      '<button class="btn btn-primary btn-sm" onclick="' + t.action + '(\'' + t.target + '\')">\u53BB\u5904\u7406</button></div>';
+  }
+  html += '</div></div>';
+  container.innerHTML = html;
 }
 
 function statCard(label, value, sub, cls) {
@@ -553,73 +858,217 @@ function renderCharts() {
           type: 'bar',
           data: {
             labels: alertData.map(function(d){return d.name}),
-            datasets: [{label:'库存',data:alertData.map(function(d){return d.stock}),backgroundColor:'#ff9800'},
-              {label:'预警值',data:alertData.map(function(d){return d.alert}),backgroundColor:'#f44336'}]
+            datasets: [{label:'\u5E93\u5B58',data:alertData.map(function(d){return d.stock}),backgroundColor:'#ff9800'},
+              {label:'\u9884\u8B66\u503C',data:alertData.map(function(d){return d.alert}),backgroundColor:'#f44336'}]
           },
           options: {responsive:true,plugins:{legend:{position:'bottom'}}}
         });
       }
     }
   }
-  if (tableData.delivery_platform && tableData.delivery_platform.length > 0) {
-    var platformMap = {};
-    for (var i=0; i<tableData.delivery_platform.length; i++) {
-      var name = tableData.delivery_platform[i].platform_name || '其他';
-      var rev = tableData.delivery_platform[i].revenue || 0;
-      platformMap[name] = (platformMap[name] || 0) + rev;
+}
+
+var currentDeliveryView = 'week';
+function switchDeliveryView(view, el) {
+  currentDeliveryView = view;
+  var tabs = document.querySelectorAll('.view-tab');
+  for (var i=0; i<tabs.length; i++) tabs[i].classList.remove('active');
+  if (el) el.classList.add('active');
+  renderDeliveryStats();
+}
+
+function renderDeliveryStats() {
+  var ctx = document.getElementById('chartDeliveryIncome');
+  if (!ctx) return;
+  if (charts.deliveryIncome) { charts.deliveryIncome.destroy(); charts.deliveryIncome = null; }
+  if (!tableData.delivery_platform || tableData.delivery_platform.length === 0) return;
+  
+  var data = tableData.delivery_platform;
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var labels = [];
+  var meituanData = [];
+  var taobaoData = [];
+  var jingdongData = [];
+  
+  if (currentDeliveryView === 'week') {
+    // \u6700\u8FD17\u5929\uFF0C\u6309\u5929\u663E\u793A
+    var dayMap = {};
+    for (var i=0; i<data.length; i++) {
+      var d = data[i];
+      if (!d.date) continue;
+      var dt = new Date(d.date);
+      if (!dt || isNaN(dt)) continue;
+      var diffDays = Math.floor((today - dt) / 86400000);
+      if (diffDays >= 0 && diffDays < 7) {
+        var key = d.date;
+        if (!dayMap[key]) dayMap[key] = {meituan:0,taobao:0,jingdong:0};
+        dayMap[key].meituan += d.meituan_actual || 0;
+        dayMap[key].taobao += d.taobao_actual || 0;
+        dayMap[key].jingdong += d.jingdong_actual || 0;
+      }
     }
-    var ctx = document.getElementById('chartPlatform');
-    if (ctx) {
-      charts.platform = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-          labels: Object.keys(platformMap),
-          datasets: [{data: Object.values(platformMap), backgroundColor:['#e65100','#2196f3','#4caf50','#ff9800','#9c27b0']}]
-        },
-        options: {responsive:true,plugins:{legend:{position:'right'}}}
-      });
+    var sortedKeys = Object.keys(dayMap).sort();
+    for (var j=0; j<sortedKeys.length; j++) {
+      labels.push(sortedKeys[j].slice(5));
+      meituanData.push(dayMap[sortedKeys[j]].meituan);
+      taobaoData.push(dayMap[sortedKeys[j]].taobao);
+      jingdongData.push(dayMap[sortedKeys[j]].jingdong);
     }
-    var dateMap = {};
-    for (var i=0; i<tableData.delivery_platform.length; i++) {
-      var d = tableData.delivery_platform[i].date;
-      var r = tableData.delivery_platform[i].revenue || 0;
-      if (d) dateMap[d] = (dateMap[d] || 0) + r;
+  } else if (currentDeliveryView === 'month') {
+    // \u5F53\u6708\uFF0C\u6309\u5929\u663E\u793A
+    var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    var monthMap = {};
+    for (var i=0; i<data.length; i++) {
+      var d = data[i];
+      if (!d.date) continue;
+      var dt = new Date(d.date);
+      if (!dt || isNaN(dt)) continue;
+      if (dt >= monthStart && dt <= today) {
+        var key = d.date;
+        if (!monthMap[key]) monthMap[key] = {meituan:0,taobao:0,jingdong:0};
+        monthMap[key].meituan += d.meituan_actual || 0;
+        monthMap[key].taobao += d.taobao_actual || 0;
+        monthMap[key].jingdong += d.jingdong_actual || 0;
+      }
     }
-    var sortedDates = Object.keys(dateMap).sort();
-    var recent7 = sortedDates.slice(-7);
-    var ctx2 = document.getElementById('chartRevenue');
-    if (ctx2) {
-      charts.revenue = new Chart(ctx2, {
-        type: 'line',
-        data: {
-          labels: recent7,
-          datasets: [{label:'营业额',data:recent7.map(function(d){return dateMap[d]}),borderColor:'#e65100',backgroundColor:'rgba(230,81,0,.1)',fill:true,tension:.3}]
-        },
-        options: {responsive:true,plugins:{legend:{display:false}}}
-      });
+    var sortedMonthKeys = Object.keys(monthMap).sort();
+    for (var j=0; j<sortedMonthKeys.length; j++) {
+      labels.push(sortedMonthKeys[j].slice(5));
+      meituanData.push(monthMap[sortedMonthKeys[j]].meituan);
+      taobaoData.push(monthMap[sortedMonthKeys[j]].taobao);
+      jingdongData.push(monthMap[sortedMonthKeys[j]].jingdong);
+    }
+  } else if (currentDeliveryView === 'year') {
+    // \u672C\u5E74\uFF0C\u6309\u6708\u663E\u793A
+    var yearStart = new Date(now.getFullYear(), 0, 1);
+    var monthLabels = ['1\u6708','2\u6708','3\u6708','4\u6708','5\u6708','6\u6708','7\u6708','8\u6708','9\u6708','10\u6708','11\u6708','12\u6708'];
+    labels = monthLabels;
+    var yearMap = {};
+    for (var m=0; m<12; m++) yearMap[m] = {meituan:0,taobao:0,jingdong:0};
+    for (var i=0; i<data.length; i++) {
+      var d = data[i];
+      if (!d.date) continue;
+      var dt = new Date(d.date);
+      if (!dt || isNaN(dt)) continue;
+      if (dt >= yearStart && dt <= today) {
+        var mIdx = dt.getMonth();
+        yearMap[mIdx].meituan += d.meituan_actual || 0;
+        yearMap[mIdx].taobao += d.taobao_actual || 0;
+        yearMap[mIdx].jingdong += d.jingdong_actual || 0;
+      }
+    }
+    for (var m=0; m<12; m++) {
+      meituanData.push(yearMap[m].meituan);
+      taobaoData.push(yearMap[m].taobao);
+      jingdongData.push(yearMap[m].jingdong);
     }
   }
-  if (tableData.daily_expense && tableData.daily_expense.length > 0) {
-    var expMap = {};
+  
+  if (labels.length > 0) {
+    charts.deliveryIncome = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {label:'\u7F8E\u56E2',data:meituanData,backgroundColor:'#FFD100'},
+          {label:'\u6DD8\u5B9D\u95EA\u8D2D',data:taobaoData,backgroundColor:'#FF5000'},
+          {label:'\u4EAC\u4E1C',data:jingdongData,backgroundColor:'#E4393C'}
+        ]
+      },
+      options: {responsive:true,plugins:{legend:{position:'bottom'}}}
+    });
+  }
+}
+
+function renderMonthlyBalance() {
+  var container = document.getElementById('monthlyBalanceContainer');
+  if (!container) return;
+  
+  // \u6309\u6708\u6C47\u603B\u6570\u636E
+  var monthMap = {};
+  var now = new Date();
+  var currentYear = now.getFullYear();
+  
+  // \u521D\u59CB\u5316\u5F53\u5E74\u540412\u4E2A\u6708
+  for (var m=1; m<=12; m++) {
+    var key = currentYear + '-' + (m < 10 ? '0' : '') + m;
+    monthMap[key] = {income:0,purchase:0,expense:0,promo:0,brush:0,net:0};
+  }
+  
+  // \u6536\u5165\uFF1A\u5916\u5356\u5230\u8D26\u5B9E\u6536
+  if (tableData.delivery_platform) {
+    for (var i=0; i<tableData.delivery_platform.length; i++) {
+      var d = tableData.delivery_platform[i];
+      if (!d.date) continue;
+      var dt = new Date(d.date);
+      if (!dt || isNaN(dt)) continue;
+      var key = dt.getFullYear() + '-' + (dt.getMonth()+1 < 10 ? '0' : '') + (dt.getMonth()+1);
+      if (monthMap[key]) {
+        monthMap[key].income += (d.total_actual || 0);
+        monthMap[key].promo += (d.total_promo || 0);
+        monthMap[key].brush += (d.total_brush || 0);
+      }
+    }
+  }
+  
+  // \u8FDB\u8D27\u6210\u672C
+  if (tableData.purchase) {
+    for (var i=0; i<tableData.purchase.length; i++) {
+      var d = tableData.purchase[i];
+      if (!d.date) continue;
+      var dt = new Date(d.date);
+      if (!dt || isNaN(dt)) continue;
+      var key = dt.getFullYear() + '-' + (dt.getMonth()+1 < 10 ? '0' : '') + (dt.getMonth()+1);
+      if (monthMap[key]) monthMap[key].purchase += (d.total_price || 0);
+    }
+  }
+  
+  // \u65E5\u5E38\u652F\u51FA
+  if (tableData.daily_expense) {
     for (var i=0; i<tableData.daily_expense.length; i++) {
-      var d = tableData.daily_expense[i].date;
-      var a = tableData.daily_expense[i].amount || 0;
-      if (d) expMap[d] = (expMap[d] || 0) + a;
-    }
-    var sortedExpDates = Object.keys(expMap).sort();
-    var recent7exp = sortedExpDates.slice(-7);
-    var ctx3 = document.getElementById('chartExpense');
-    if (ctx3) {
-      charts.expense = new Chart(ctx3, {
-        type: 'bar',
-        data: {
-          labels: recent7exp,
-          datasets: [{label:'支出',data:recent7exp.map(function(d){return expMap[d]}),backgroundColor:'#f44336'}]
-        },
-        options: {responsive:true,plugins:{legend:{display:false}}}
-      });
+      var d = tableData.daily_expense[i];
+      if (!d.date) continue;
+      var dt = new Date(d.date);
+      if (!dt || isNaN(dt)) continue;
+      var key = dt.getFullYear() + '-' + (dt.getMonth()+1 < 10 ? '0' : '') + (dt.getMonth()+1);
+      if (monthMap[key]) monthMap[key].expense += (d.amount || 0);
     }
   }
+  
+  // \u8BA1\u7B97\u51C0\u6536\u5165
+  var keys = Object.keys(monthMap).sort();
+  var hasData = false;
+  for (var i=0; i<keys.length; i++) {
+    var m = monthMap[keys[i]];
+    m.net = m.income - m.purchase - m.expense - m.promo - m.brush;
+    if (m.income !== 0 || m.purchase !== 0 || m.expense !== 0 || m.promo !== 0 || m.brush !== 0) hasData = true;
+  }
+  
+  if (!hasData) {
+    container.innerHTML = '<div class="empty-row">\u6682\u65E0\u6570\u636E</div>';
+    return;
+  }
+  
+  // \u751F\u6210\u8868\u683C
+  var html = '<table class="monthly-balance-table"><thead><tr>' +
+    '<th>\u6708\u4EFD</th><th>\u5916\u5356\u5230\u8D26\u5B9E\u6536</th><th>\u8FDB\u8D27\u6210\u672C</th><th>\u65E5\u5E38\u652F\u51FA</th>' +
+    '<th>\u63A8\u5E7F\u8D39</th><th>\u5237\u5355\u8D39</th><th>\u6708\u51C0\u6536\u5165</th></tr></thead><tbody>';
+  for (var i=0; i<keys.length; i++) {
+    var k = keys[i];
+    var m = monthMap[k];
+    if (m.income === 0 && m.purchase === 0 && m.expense === 0 && m.promo === 0 && m.brush === 0) continue;
+    var netClass = m.net >= 0 ? 'net' : 'expense';
+    html += '<tr><td style="text-align:center">' + k + '</td>' +
+      '<td class="income">\u00A5' + m.income.toFixed(2) + '</td>' +
+      '<td class="expense">\u00A5' + m.purchase.toFixed(2) + '</td>' +
+      '<td class="expense">\u00A5' + m.expense.toFixed(2) + '</td>' +
+      '<td class="expense">\u00A5' + m.promo.toFixed(2) + '</td>' +
+      '<td class="expense">\u00A5' + m.brush.toFixed(2) + '</td>' +
+      '<td class="' + netClass + '">\u00A5' + m.net.toFixed(2) + '</td></tr>';
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
 
 // ============ 数据表视图 ============
@@ -643,7 +1092,11 @@ function showTable(tableKey) {
   document.getElementById('viewContainer').innerHTML = html;
   var thead = document.querySelector('#dataTable thead tr');
   var thHtml = '';
-  for (var i=0; i<def.fields.length; i++) thHtml += '<th>' + def.fields[i].label + '</th>';
+  var hiddenFields = (perm.hiddenFields && perm.hiddenFields[tableKey]) || [];
+  for (var i=0; i<def.fields.length; i++) {
+    if (hiddenFields.indexOf(def.fields[i].key) >= 0) continue;
+    thHtml += '<th>' + def.fields[i].label + '</th>';
+  }
   if (canEdit || canDelete) thHtml += '<th>操作</th>';
   thead.innerHTML = thHtml;
   loadTableData(tableKey);
@@ -670,19 +1123,21 @@ function renderTableRows(tableKey, results) {
   var perm = PERMISSIONS[currentUser.role];
   var canEdit = perm.canEdit === true || (Array.isArray(perm.canEdit) && perm.canEdit.indexOf(tableKey) >= 0);
   var canDelete = perm.canDelete === true || (Array.isArray(perm.canDelete) && perm.canDelete.indexOf(tableKey) >= 0);
+  var hiddenFields = (perm.hiddenFields && perm.hiddenFields[tableKey]) || [];
+  var visibleFields = def.fields.filter(function(f) { return hiddenFields.indexOf(f.key) < 0; });
   var searchTerm = (document.getElementById('searchInput') || {}).value || '';
   var filtered = results;
   if (searchTerm) {
     filtered = results.filter(function(row) {
-      for (var i=0; i<def.fields.length; i++) {
-        var val = getDisplayValue(row, def.fields[i]);
+      for (var i=0; i<visibleFields.length; i++) {
+        var val = getDisplayValue(row, visibleFields[i]);
         if (val && String(val).indexOf(searchTerm) >= 0) return true;
       }
       return false;
     });
   }
   if (filtered.length === 0) {
-    var cols = def.fields.length + (canEdit || canDelete ? 1 : 0);
+    var cols = visibleFields.length + (canEdit || canDelete ? 1 : 0);
     document.getElementById('tableBody').innerHTML = '<tr class="empty-row"><td colspan="' + cols + '">暂无数据</td></tr>';
     return;
   }
@@ -690,7 +1145,7 @@ function renderTableRows(tableKey, results) {
   for (var i=0; i<filtered.length; i++) {
     var row = filtered[i];
     html += '<tr>';
-    for (var j=0; j<def.fields.length; j++) html += '<td>' + formatCell(row, def.fields[j]) + '</td>';
+    for (var j=0; j<visibleFields.length; j++) html += '<td>' + formatCell(row, visibleFields[j]) + '</td>';
     if (canEdit || canDelete) {
       html += '<td style="white-space:nowrap">';
       if (canEdit) html += '<button class="btn btn-outline btn-sm" onclick="openEditModal(\'' + tableKey + '\',\'' + row.id + '\')">编辑</button> ';
@@ -784,11 +1239,26 @@ function openEditModal(tableKey, rowId) {
 
 function renderForm(tableKey, row) {
   var def = TABLES[tableKey];
-  var html = '<div class="form-grid">';
+  var perm = PERMISSIONS[currentUser.role];
+  var hiddenFields = (perm.hiddenFields && perm.hiddenFields[tableKey]) || [];
+  var html = '';
+  
+  // 外卖平台：按平台分组渲染
+  if (tableKey === 'delivery_platform') {
+    html = renderDeliveryForm(row);
+    document.getElementById('modalBody').innerHTML = html;
+    return;
+  }
+  
+  html = '<div class="form-grid">';
   var refFields = [];
-  for (var i=0; i<def.fields.length; i++) if (def.fields[i].type === 'ref') refFields.push(def.fields[i]);
+  for (var i=0; i<def.fields.length; i++) {
+    if (hiddenFields.indexOf(def.fields[i].key) >= 0) continue;
+    if (def.fields[i].type === 'ref') refFields.push(def.fields[i]);
+  }
   for (var i=0; i<def.fields.length; i++) {
     var f = def.fields[i];
+    if (hiddenFields.indexOf(f.key) >= 0) continue;
     var val = row ? (row[f.key] || '') : '';
     var full = f.type === 'textarea' ? ' full' : '';
     html += '<div class="form-group' + full + '">';
@@ -816,6 +1286,45 @@ function renderForm(tableKey, row) {
   html += '</div>';
   document.getElementById('modalBody').innerHTML = html;
   if (refFields.length > 0) loadRefOptions(refFields);
+}
+
+function renderDeliveryForm(row) {
+  var platforms = [
+    {key:'meituan', label:'美团', color:'#FFD100'},
+    {key:'taobao', label:'淘宝闪购', color:'#FF5000'},
+    {key:'jingdong', label:'京东', color:'#E4393C'}
+  ];
+  var html = '<div class="delivery-form">';
+  html += '<div class="form-group full"><label>日期<span class="required-mark">*</span></label><input type="date" id="field_date" value="' + escapeAttr(row ? row.date : '') + '"></div>';
+  
+  for (var i=0; i<platforms.length; i++) {
+    var p = platforms[i];
+    html += '<div class="platform-section" style="border-left:4px solid ' + p.color + ';padding-left:12px;margin:16px 0;">';
+    html += '<h4 style="color:' + p.color + ';margin-bottom:10px;font-size:15px;">' + p.label + '</h4>';
+    html += '<div class="form-grid">';
+    html += '<div class="form-group"><label>总单量</label><input type="number" id="field_' + p.key + '_orders" value="' + escapeAttr(row ? (row[p.key + '_orders'] || '') : '') + '" placeholder="请输入单量"></div>';
+    html += '<div class="form-group"><label>营业额(元)</label><input type="number" id="field_' + p.key + '_revenue" value="' + escapeAttr(row ? (row[p.key + '_revenue'] || '') : '') + '" placeholder="请输入营业额"></div>';
+    html += '<div class="form-group"><label>到账实收(元)</label><input type="number" id="field_' + p.key + '_actual" value="' + escapeAttr(row ? (row[p.key + '_actual'] || '') : '') + '" placeholder="请输入到账实收"></div>';
+    html += '<div class="form-group"><label>推广费(元)</label><input type="number" id="field_' + p.key + '_promo" value="' + escapeAttr(row ? (row[p.key + '_promo'] || '') : '') + '" placeholder="请输入推广费"></div>';
+    html += '<div class="form-group"><label>刷单费(元)</label><input type="number" id="field_' + p.key + '_brush" value="' + escapeAttr(row ? (row[p.key + '_brush'] || '') : '') + '" placeholder="请输入刷单费"></div>';
+    html += '</div></div>';
+  }
+  
+  // 合计区域（只读）
+  html += '<div class="platform-section" style="border-left:4px solid #333;padding-left:12px;margin:16px 0;background:#f9f9f9;">';
+  html += '<h4 style="color:#333;margin-bottom:10px;font-size:15px;">合计（自动计算）</h4>';
+  html += '<div class="form-grid">';
+  html += '<div class="form-group"><label>总单量</label><input type="number" id="field_total_orders" value="' + escapeAttr(row ? (row.total_orders || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
+  html += '<div class="form-group"><label>总营业额(元)</label><input type="number" id="field_total_revenue" value="' + escapeAttr(row ? (row.total_revenue || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
+  html += '<div class="form-group"><label>到账实收合计(元)</label><input type="number" id="field_total_actual" value="' + escapeAttr(row ? (row.total_actual || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
+  html += '<div class="form-group"><label>推广费合计(元)</label><input type="number" id="field_total_promo" value="' + escapeAttr(row ? (row.total_promo || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
+  html += '<div class="form-group"><label>刷单费合计(元)</label><input type="number" id="field_total_brush" value="' + escapeAttr(row ? (row.total_brush || '') : '') + '" readOnly style="background:#f5f5f5;cursor:not-allowed"></div>';
+  html += '<div class="form-group"><label>实际净收入(元)</label><input type="number" id="field_net_income" value="' + escapeAttr(row ? (row.net_income || '') : '') + '" readOnly style="background:#e8f5e9;cursor:not-allowed;font-weight:600"></div>';
+  html += '</div></div>';
+  
+  html += '<div class="form-group full"><label>备注</label><textarea id="field_remark" placeholder="请输入备注">' + escapeHtml(row ? (row.remark || '') : '') + '</textarea></div>';
+  html += '</div>';
+  return html;
 }
 
 async function loadRefOptions(refFields) {
@@ -898,6 +1407,25 @@ async function saveModalData() {
     }
   }
   // 自动计算
+  // 外卖平台自动计算合计
+  if (editingTable === 'delivery_platform') {
+    var platforms = ['meituan','taobao','jingdong'];
+    var total_orders = 0, total_revenue = 0, total_actual = 0, total_promo = 0, total_brush = 0;
+    for (var i=0; i<platforms.length; i++) {
+      var p = platforms[i];
+      total_orders += data[p + '_orders'] || 0;
+      total_revenue += data[p + '_revenue'] || 0;
+      total_actual += data[p + '_actual'] || 0;
+      total_promo += data[p + '_promo'] || 0;
+      total_brush += data[p + '_brush'] || 0;
+    }
+    data.total_orders = total_orders;
+    data.total_revenue = total_revenue;
+    data.total_actual = total_actual;
+    data.total_promo = total_promo;
+    data.total_brush = total_brush;
+    data.net_income = total_actual - total_promo - total_brush;
+  }
   if (editingTable === 'purchase' && data.quantity != null && data.unit_price != null) data.total_price = data.quantity * data.unit_price;
   if (editingTable === 'inventory_check' && data.actual_quantity != null && data.book_quantity != null) data.difference = data.actual_quantity - data.book_quantity;
   if (editingTable === 'delivery_platform' && data.revenue != null && data.commission_rate != null) {
@@ -1070,6 +1598,100 @@ function onLiveDataChange(tableKey, eventType) {
   }
 }
 
+// ============ 数据导出 ============
+function showExportPage() {
+  setActiveNav('export');
+  currentTable = null;
+  var html = '<div class="page-header"><h2>\uD83D\uDCC4 数据导出</h2>' +
+    '<span class="sync-indicator"><span class="sync-dot"></span>云端同步</span></div>' +
+    '<div class="chart-card"><h3>\u5BFC\u51FA\u5168\u90E8\u6570\u636E</h3>' +
+    '<p style="color:var(--text-light);margin-bottom:16px">\u70B9\u51FB\u4E0B\u8F7D\u5168\u90E8\u8868\u6570\u636E\uFF08CSV\u683C\u5F0F\uFF0C\u53EF\u7528Excel\u6253\u5F00\uFF09</p>' +
+    '<button class="btn btn-primary" onclick="exportAllData()">\uD83D\uDCC4 导出全部数据</button></div>' +
+    '<div class="chart-card" style="margin-top:16px"><h3>\u5BFC\u51FA\u5355\u4E2A\u8868</h3>';
+  var groups = {};
+  for (var key in TABLES) {
+    var t = TABLES[key];
+    if (!groups[t.group]) groups[t.group] = [];
+    groups[t.group].push({key:key, def:t});
+  }
+  for (var g in groups) {
+    html += '<div style="margin-bottom:12px"><div style="font-size:13px;color:var(--text-light);margin-bottom:6px">' + g + '</div>';
+    for (var i=0; i<groups[g].length; i++) {
+      var item = groups[g][i];
+      html += '<button class="btn btn-outline" style="margin:4px 6px 4px 0" onclick="exportTableData(\'' + item.key + '\')">' + item.def.icon + ' ' + item.def.label + '</button>';
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  document.getElementById('viewContainer').innerHTML = html;
+}
+
+function exportTableData(tableKey) {
+  var def = TABLES[tableKey];
+  var data = tableData[tableKey] || [];
+  var perm = PERMISSIONS[currentUser.role];
+  var hiddenFields = (perm.hiddenFields && perm.hiddenFields[tableKey]) || [];
+  var visibleFields = def.fields.filter(function(f) { return hiddenFields.indexOf(f.key) < 0; });
+  var headers = visibleFields.map(function(f) { return f.label; });
+  var rows = [];
+  for (var i=0; i<data.length; i++) {
+    var row = [];
+    for (var j=0; j<visibleFields.length; j++) {
+      var val = data[i][visibleFields[j].key];
+      if (val === null || val === undefined) val = '';
+      row.push(String(val).replace(/,/g, '\u3001'));
+    }
+    rows.push(row.join(','));
+  }
+  var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = def.label + '_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(def.label + '导出成功', 'success');
+}
+
+function exportAllData() {
+  var keys = Object.keys(TABLES);
+  var perm = PERMISSIONS[currentUser.role];
+  var exported = 0;
+  for (var i=0; i<keys.length; i++) {
+    if (perm.hidden.indexOf(keys[i]) >= 0) continue;
+    var def = TABLES[keys[i]];
+    var data = tableData[keys[i]] || [];
+    var hiddenFields = (perm.hiddenFields && perm.hiddenFields[keys[i]]) || [];
+    var visibleFields = def.fields.filter(function(f) { return hiddenFields.indexOf(f.key) < 0; });
+    var headers = visibleFields.map(function(f) { return f.label; });
+    var rows = [];
+    for (var j=0; j<data.length; j++) {
+      var row = [];
+      for (var k=0; k<visibleFields.length; k++) {
+        var val = data[j][visibleFields[k].key];
+        if (val === null || val === undefined) val = '';
+        row.push(String(val).replace(/,/g, '\u3001'));
+      }
+      rows.push(row.join(','));
+    }
+    var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = def.label + '_' + new Date().toISOString().slice(0,10) + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    exported++;
+  }
+  showToast('已导出' + exported + '个表的数据', 'success');
+}
+
 // ============ Toast ============
 function showToast(msg, type) {
   var toast = document.createElement('div');
@@ -1085,7 +1707,7 @@ function showToast(msg, type) {
 
 // ============ 键盘事件 ============
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
+  if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none' && selectedUsername) doLogin();
   if (e.key === 'Escape') closeModal();
 });
 document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
